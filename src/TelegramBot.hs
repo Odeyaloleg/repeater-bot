@@ -38,31 +38,29 @@ pollTelegram offset = do
                                  , proxy = Just myProxy}
   return $ (getResponseBody response :: TelegramMsgs)
 
-type LastUpdateId       = Int
 type SucceedAnswersSize = Int
+type LastUpdateId       = Int
 
 handleUpdates :: TelegramMsgs -> (SucceedAnswersSize, LastUpdateId) -> IO (SucceedAnswersSize, LastUpdateId)
 handleUpdates (TelegramMsgs [])         info                  = return info -- fst - size, snd - update id
 handleUpdates (TelegramMsgs (msg:rest)) (sizeNum, lastUpdate) = do
   case msgText msg of
     Just msgText' -> do
-      let answer = setRequestProxy (Just myProxy)
-            $ parseRequest_ (myUri ++ myToken ++ "/sendMessage")
-      response <- httpJSON $ answer { method = "POST"
-                                    , requestBody = RequestBodyLBS $ encode $ composeTextMsgRequest msg
-                                    , requestHeaders = [(HTTP.hContentType, "application/json")] } :: IO (Response Object)
+      sendAnswer "sendMessage" (composeTextMsgRequest msg)
       handleUpdates (TelegramMsgs rest) (sizeNum + 1, updateId msg)
     Nothing ->
       case sticker msg of
         Just sticker' -> do
-          let answer = setRequestProxy (Just myProxy)
-                $ parseRequest_ (myUri ++ myToken ++ "/sendSticker")
-          response <- httpJSON $ answer { method = "POST"
-                                        , requestBody = RequestBodyLBS $ encode $ TelegramStickerJSON (chatId msg) (stickerUniqueId sticker')
-                                        , requestHeaders = [(HTTP.hContentType, "application/json")]} :: IO (Response Object)
+          sendAnswer "sendSticker" (TelegramStickerJSON (chatId msg) (stickerUniqueId sticker'))
           handleUpdates (TelegramMsgs rest) (sizeNum + 1, updateId msg)
         Nothing -> do
           return (1, updateId msg)
+  where sendAnswer telegramMethod answerBody = do
+          let answer = setRequestProxy (Just myProxy)
+                $ parseRequest_ (myUri ++ myToken ++ "/" ++ telegramMethod)
+          httpJSON $ answer { method = "POST"
+                            , requestBody = RequestBodyLBS $ encode $ answerBody
+                            , requestHeaders = [(HTTP.hContentType, "application/json")] } :: IO (Response Object)
 
 composeTextMsgRequest :: TelegramMsg -> TelegramMsgJSON
 composeTextMsgRequest msg =
@@ -75,6 +73,6 @@ composeTextMsgRequest msg =
                 (entityText, afterEntity) = splitAt (entityLength entity) eTextAndRest
             in parseEntities eRest (composedText ++ beforeEntity ++ composeEntityText entityText (entityType entity) (url entity), afterEntity) (offset entity + entityLength entity)
           composeEntityText entityText' "text_link" (Just url) = "[" ++ entityText' ++ "](" ++ url ++ ")"
-          composeEntityText entityText' "bold"       _         = "*" ++ entityText' ++ "*"
-          composeEntityText entityText' "italic"     _         = "_" ++ entityText' ++ "_"
-          composeEntityText entityText' _            _         = entityText'
+          composeEntityText entityText' "bold"      _          = "*" ++ entityText' ++ "*"
+          composeEntityText entityText' "italic"    _          = "_" ++ entityText' ++ "_"
+          composeEntityText entityText' _           _          = entityText'
