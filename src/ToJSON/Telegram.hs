@@ -6,13 +6,13 @@ import Data.Aeson
 
 data TelegramMsgJSON = TelegramMsgJSON
                      { chatIdJSON  :: Integer
-                     , parseType   :: Maybe String
+                     , parseMode   :: Maybe String
                      , msgTextJSON :: String }
 
 instance ToJSON TelegramMsgJSON where
-  toJSON (TelegramMsgJSON chatId (Just parseType) msgText) =
+  toJSON (TelegramMsgJSON chatId (Just parseMode) msgText) =
     object [ "chat_id"    .= chatId
-           , "parse_type" .= parseType
+           , "parse_mode" .= parseMode
            , "text"       .= msgText ]
   toJSON (TelegramMsgJSON chatId Nothing msgText) =
     object [ "chat_id"   .= chatId

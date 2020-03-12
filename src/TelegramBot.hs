@@ -61,17 +61,15 @@ handleUpdates (TelegramMsgs (msg:rest)) (sizeNum, lastUpdate) = do
         Nothing -> do
           return (1, updateId msg)
 
-{- TODO: Markdown parse_type doesn't work for some reason.
-         Messages is being composed not correctly with parse_type "text_link" if it has more than 1 text_link. -}
 composeTextMsgRequest :: TelegramMsg -> TelegramMsgJSON
 composeTextMsgRequest msg =
   case entities msg of
     Nothing        -> TelegramMsgJSON (chatId msg) Nothing (fromJust (msgText msg))
-    Just entities' -> TelegramMsgJSON (chatId msg) (Just "Markdown") (parseEntities entities' ("", fromJust (msgText msg)))
-    where parseEntities [] (composedText, textRest) = composedText ++ textRest
-          parseEntities (entity:eRest) (composedText, textRest) = 
-            let (beforeEntity, rest') = splitAt (offset entity) textRest
+    Just entities' -> TelegramMsgJSON (chatId msg) (Just "Markdown") (parseEntities entities' ("", fromJust (msgText msg)) 0)
+    where parseEntities [] (composedText, textRest) _ = composedText ++ textRest
+          parseEntities (entity:eRest) (composedText, textRest) parsedLength = 
+            let (beforeEntity, rest') = splitAt ((offset entity) - parsedLength) textRest
                 (entityText, rest'') = splitAt (entityLength entity) rest'
-            in parseEntities eRest (composedText ++ beforeEntity ++ composeEntityText entityText (entityType entity) (url entity), rest'')
+            in parseEntities eRest (composedText ++ beforeEntity ++ composeEntityText entityText (entityType entity) (url entity), rest'') (offset entity + entityLength entity)
           composeEntityText entityText' "text_link" (Just url) = "[" ++ entityText' ++ "](" ++ url ++ ")"
           composeEntityText entityText' _ _ = entityText'
