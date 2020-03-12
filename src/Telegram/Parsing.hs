@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Parsing.Telegram where
+module Telegram.Parsing where
 
 import Data.Aeson
 
@@ -18,11 +18,11 @@ instance FromJSON TelegramMsgs where
         return $ TelegramMsgs msgs
 
 data TelegramMsg = TelegramMsg
-                     { updateId :: Integer
+                     { updateId :: Int
                      , msgText  :: Maybe String
                      , sticker  :: Maybe TelegramSticker
                      , entities :: Maybe [TelegramEntity]
-                     , chatId   :: Integer }
+                     , chatId   :: Int }
 
 instance FromJSON TelegramMsg where
   parseJSON (Object telegramMsg) = do

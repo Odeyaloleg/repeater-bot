@@ -1,11 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module ToJSON.Telegram where
+module Telegram.ToJSON where
 
 import Data.Aeson
 
 data TelegramMsgJSON = TelegramMsgJSON
-                     { chatIdJSON  :: Integer
+                     { chatIdJSON  :: Int
                      , parseMode   :: Maybe String
                      , msgTextJSON :: String }
 
@@ -19,7 +19,7 @@ instance ToJSON TelegramMsgJSON where
            , "text"      .= msgText ]
 
 data TelegramStickerJSON = TelegramStickerJSON
-                         { stickerChatId       :: Integer
+                         { stickerChatId       :: Int
                          , stickerUniqueIdJSON :: String }
 
 instance ToJSON TelegramStickerJSON where
