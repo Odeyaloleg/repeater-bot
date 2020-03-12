@@ -1,3 +1,6 @@
 # repeater-bot
 
-Вписать токен в файле src/TelegramBot.hs
+Enter bot's token in src/TelegramBot.hs
+
+Features:
+Repeating simple text messages and stickers.
