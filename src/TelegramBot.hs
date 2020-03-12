@@ -16,7 +16,7 @@ import           Data.Maybe (fromJust)
 
 myProxy = Proxy "51.158.108.135" 8811
 myUri = "https://api.telegram.org/bot"
-myToken = "1036316939:AAFmWwAZcTr64Zc0YzawkSUrcr04qN51_xQ"
+myToken = ""
 pollingTimeout = "60"
 
 runTelegramBot :: Int -> IO ()
@@ -75,4 +75,6 @@ composeTextMsgRequest msg =
                 (entityText, afterEntity) = splitAt (entityLength entity) eTextAndRest
             in parseEntities eRest (composedText ++ beforeEntity ++ composeEntityText entityText (entityType entity) (url entity), afterEntity) (offset entity + entityLength entity)
           composeEntityText entityText' "text_link" (Just url) = "[" ++ entityText' ++ "](" ++ url ++ ")"
-          composeEntityText entityText' _ _ = entityText'
+          composeEntityText entityText' "bold"       _         = "*" ++ entityText' ++ "*"
+          composeEntityText entityText' "italic"     _         = "_" ++ entityText' ++ "_"
+          composeEntityText entityText' _            _         = entityText'
