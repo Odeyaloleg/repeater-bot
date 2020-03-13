@@ -40,25 +40,27 @@ type SucceedAnswersSize = Int
 type LastUpdateId       = Int
 
 handleUpdates :: TelegramMsgs -> TelegramSettings -> (SucceedAnswersSize, LastUpdateId) -> IO (SucceedAnswersSize, LastUpdateId)
-handleUpdates (TelegramMsgs [])         s info                  = return info -- fst - size, snd - update id
+handleUpdates (TelegramMsgs [])         s info                  = return info
 handleUpdates (TelegramMsgs (msg:rest)) s (sizeNum, lastUpdate) = do
   case msgText msg of
     Just msgText' -> do
-      sendAnswer "sendMessage" (composeTextMsgRequest msg)
+      sendAnswerNTimes (repetitionsNum s) "sendMessage" (composeTextMsgRequest msg)
       handleUpdates (TelegramMsgs rest) s (sizeNum + 1, updateId msg)
     Nothing ->
       case sticker msg of
         Just sticker' -> do
-          sendAnswer "sendSticker" (TelegramStickerJSON (chatId msg) (stickerUniqueId sticker'))
+          sendAnswerNTimes (repetitionsNum s) "sendSticker" (TelegramStickerJSON (chatId msg) (stickerUniqueId sticker'))
           handleUpdates (TelegramMsgs rest) s (sizeNum + 1, updateId msg)
         Nothing -> do
           return (1, updateId msg)
-  where sendAnswer telegramMethod answerBody = do
+  where sendAnswerNTimes n telegramMethod answerBody = do
           let answer = setRequestProxy (proxyServer s)
                 $ parseRequest_ (botUri ++ botToken s ++ "/" ++ telegramMethod)
-          httpJSON $ answer { method = "POST"
-                            , requestBody = RequestBodyLBS $ encode $ answerBody
-                            , requestHeaders = [(HTTP.hContentType, "application/json")] } :: IO (Response Object)
+          repeatAnswer n answer { method = "POST"
+                                , requestBody = RequestBodyLBS $ encode $ answerBody
+                                , requestHeaders = [(HTTP.hContentType, "application/json")] }
+        repeatAnswer 1 answer = httpJSON answer :: IO (Response Object)
+        repeatAnswer n answer = do httpJSON answer :: IO (Response Object); repeatAnswer (n-1) answer
 
 composeTextMsgRequest :: TelegramMsg -> TelegramMsgJSON
 composeTextMsgRequest msg =
