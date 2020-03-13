@@ -6,58 +6,56 @@ module TelegramBot
 
 import           Network.HTTP.Simple
 import           Network.HTTP.Client.Internal
-import qualified Network.HTTP.Types as HTTP (hContentType)
-import qualified Data.ByteString.Lazy as BSL (ByteString)
+import qualified Network.HTTP.Types as HTTP ( hContentType )
+import qualified Data.ByteString.Lazy as BSL ( ByteString )
 import           Data.Aeson
-import           Data.Aeson.Types (Object)
+import           Data.Aeson.Types ( Object )
 import           Telegram.Parsing
 import           Telegram.ToJSON
-import           Data.Maybe (fromJust)
+import           Telegram.Settings
+import           Data.Maybe ( fromJust )
 
-myProxy = Proxy "51.158.108.135" 8811
-myUri = "https://api.telegram.org/bot"
-myToken = ""
-pollingTimeout = "60"
+botUri = "https://api.telegram.org/bot"
 
-runTelegramBot :: Int -> IO ()
-runTelegramBot offset = do
-  recievedUpdates <- pollTelegram offset
+runTelegramBot :: Int -> TelegramSettings -> IO ()
+runTelegramBot offset settings = do
+  recievedUpdates <- pollTelegram offset settings
   case recievedUpdates of
     BadRequest description -> putStrLn $ "TelegramBot error: " ++ description
     TelegramMsgs _ -> do
-      handledMsgsNum <- handleUpdates recievedUpdates (0, 0)
+      handledMsgsNum <- handleUpdates recievedUpdates settings (0, 0)
       if fst handledMsgsNum == 0
-      then putStrLn $ "Din't get any messages."
+      then putStrLn $ "Didn't get any messages."
       else putStrLn $ "Handled " ++ show (fst handledMsgsNum) ++ " messages."
-      runTelegramBot $ snd handledMsgsNum
+      runTelegramBot (snd handledMsgsNum) settings
 
-pollTelegram :: Int -> IO TelegramMsgs
-pollTelegram offset = do
-  request <- parseRequest (myUri ++ myToken ++ "/getUpdates?timeout=" ++ pollingTimeout ++ "&offset=" ++ show (offset + 1))
+pollTelegram :: Int -> TelegramSettings -> IO TelegramMsgs
+pollTelegram offset s = do
+  request <- parseRequest (botUri ++ botToken s ++ "/getUpdates?timeout=" ++ show (pollingTimeout s) ++ "&offset=" ++ show (offset + 1))
   response <- httpJSON $ request { responseTimeout = ResponseTimeoutNone
-                                 , proxy = Just myProxy}
+                                 , proxy = proxyServer s }
   return $ (getResponseBody response :: TelegramMsgs)
 
 type SucceedAnswersSize = Int
 type LastUpdateId       = Int
 
-handleUpdates :: TelegramMsgs -> (SucceedAnswersSize, LastUpdateId) -> IO (SucceedAnswersSize, LastUpdateId)
-handleUpdates (TelegramMsgs [])         info                  = return info -- fst - size, snd - update id
-handleUpdates (TelegramMsgs (msg:rest)) (sizeNum, lastUpdate) = do
+handleUpdates :: TelegramMsgs -> TelegramSettings -> (SucceedAnswersSize, LastUpdateId) -> IO (SucceedAnswersSize, LastUpdateId)
+handleUpdates (TelegramMsgs [])         s info                  = return info -- fst - size, snd - update id
+handleUpdates (TelegramMsgs (msg:rest)) s (sizeNum, lastUpdate) = do
   case msgText msg of
     Just msgText' -> do
       sendAnswer "sendMessage" (composeTextMsgRequest msg)
-      handleUpdates (TelegramMsgs rest) (sizeNum + 1, updateId msg)
+      handleUpdates (TelegramMsgs rest) s (sizeNum + 1, updateId msg)
     Nothing ->
       case sticker msg of
         Just sticker' -> do
           sendAnswer "sendSticker" (TelegramStickerJSON (chatId msg) (stickerUniqueId sticker'))
-          handleUpdates (TelegramMsgs rest) (sizeNum + 1, updateId msg)
+          handleUpdates (TelegramMsgs rest) s (sizeNum + 1, updateId msg)
         Nothing -> do
           return (1, updateId msg)
   where sendAnswer telegramMethod answerBody = do
-          let answer = setRequestProxy (Just myProxy)
-                $ parseRequest_ (myUri ++ myToken ++ "/" ++ telegramMethod)
+          let answer = setRequestProxy (proxyServer s)
+                $ parseRequest_ (botUri ++ botToken s ++ "/" ++ telegramMethod)
           httpJSON $ answer { method = "POST"
                             , requestBody = RequestBodyLBS $ encode $ answerBody
                             , requestHeaders = [(HTTP.hContentType, "application/json")] } :: IO (Response Object)
