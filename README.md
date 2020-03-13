@@ -1,6 +1,6 @@
 # repeater-bot
 
-Enter bot's token in src/TelegramBot.hs
+Configure bot in ~/bot.config.
 
 Features:
-Repeating: simple text messages, stickers, text links.
+Repeating: text messages, text links, stickers.
