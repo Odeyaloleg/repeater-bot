@@ -7,7 +7,7 @@ module TelegramBot
 import           Network.HTTP.Simple
 import           Network.HTTP.Client.Internal
 import qualified Network.HTTP.Types as HTTP ( hContentType )
-import qualified Data.ByteString.Lazy as BSL ( ByteString )
+import qualified Data.ByteString.Lazy as BSL ( ByteString, fromStrict )
 import           Data.Aeson
 import           Data.Aeson.Types ( Object )
 import           Telegram.Parsing
@@ -44,7 +44,9 @@ handleUpdates (TelegramMsgs [])         s info                  = return info
 handleUpdates (TelegramMsgs (msg:rest)) s (sizeNum, lastUpdate) = do
   case msgText msg of
     Just msgText' -> do
-      sendAnswerNTimes (repetitionsNum s) "sendMessage" (composeTextMsgRequest msg)
+      if head msgText' == '/'
+        then sendAnswerToCommand msgText'
+        else sendAnswerNTimes (repetitionsNum s) "sendMessage" (composeTextMsgRequest msg)
       handleUpdates (TelegramMsgs rest) s (sizeNum + 1, updateId msg)
     Nothing ->
       case sticker msg of
@@ -61,6 +63,16 @@ handleUpdates (TelegramMsgs (msg:rest)) s (sizeNum, lastUpdate) = do
                                 , requestHeaders = [(HTTP.hContentType, "application/json")] }
         repeatAnswer 1 answer = httpJSON answer :: IO (Response Object)
         repeatAnswer n answer = do httpJSON answer :: IO (Response Object); repeatAnswer (n-1) answer
+        sendAnswerToCommand commandText = do
+          let answerText = case commandText of
+                "/help"   -> encode $ TelegramMsgJSON (chatId msg) Nothing (helpMessage s)
+                "/repeat" -> encode $ TelegramMsgJSON (chatId msg) Nothing (repeatMessage s)
+                commandText' -> encode $ TelegramMsgJSON (chatId msg) Nothing ("Unknown command " ++ commandText' ++ ".")
+          let answer = setRequestProxy (proxyServer s)
+                $ parseRequest_ (botUri ++ botToken s ++ "/sendMessage")
+          httpJSON $ answer { method = "POST"
+                            , requestBody = RequestBodyLBS $ answerText
+                            , requestHeaders = [(HTTP.hContentType, "application/json")] }
 
 composeTextMsgRequest :: TelegramMsg -> TelegramMsgJSON
 composeTextMsgRequest msg =

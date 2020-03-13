@@ -15,8 +15,8 @@ data TelegramSettings = TelegramSettings
                           , proxyServer    :: Maybe Proxy
                           , pollingTimeout :: Int
                           , repetitionsNum :: Int
-                          , helpMessage    :: BS8.ByteString
-                          , repeatMessage  :: BS8.ByteString }
+                          , helpMessage    :: String
+                          , repeatMessage  :: String }
 
 setTelegramSettings :: MS.Map BS8.ByteString BS8.ByteString -> Maybe TelegramSettings
 setTelegramSettings settingsMap = do
@@ -40,7 +40,7 @@ setTelegramSettings settingsMap = do
         Nothing -> Nothing
         Just (n', _) -> if n' > 0 && n' < 6 then Just n' else Nothing)
   parsedHelpMsg <- MS.lookup "CommandHelp" settingsMap >>=
-    (\t -> if BS8.null t then Nothing else Just t)
+    (\t -> if BS8.null t then Nothing else Just (BS8.unpack t))
   parsedRepeatMsg <- MS.lookup "CommandRepeat" settingsMap >>=
-    (\t -> if BS8.null t then Nothing else Just t)
+    (\t -> if BS8.null t then Nothing else Just (BS8.unpack t))
   return $ TelegramSettings parsedToken parsedProxyServer parsedPollingTimeout parsedRepititions parsedHelpMsg parsedRepeatMsg
