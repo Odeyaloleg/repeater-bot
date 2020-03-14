@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Telegram.Settings
-  ( TelegramSettings, botToken, proxyServer, pollingTimeout, repetitionsNum
+  ( TelegramSettings, botToken, proxyServer, pollingTimeout, repeatsNum
   , helpMessage, repeatMessage, setTelegramSettings ) where
 
 import qualified Data.Map.Strict as MS        ( Map, lookup )
@@ -14,7 +14,7 @@ data TelegramSettings = TelegramSettings
                           { botToken       :: String
                           , proxyServer    :: Maybe Proxy
                           , pollingTimeout :: Int
-                          , repetitionsNum :: Int
+                          , repeatsNum     :: Int
                           , helpMessage    :: String
                           , repeatMessage  :: String }
 

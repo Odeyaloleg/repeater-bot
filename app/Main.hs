@@ -14,4 +14,4 @@ main = do
       let telegramSettings = setTelegramSettings botConfig'
       case telegramSettings of
         Nothing               -> putStrLn "Couldn't parse Telegram settings properly. Telegram bot wasn't executed."
-        Just telegramSettings' -> runTelegramBot 0 telegramSettings'
+        Just telegramSettings' -> execTelegramBot telegramSettings'
