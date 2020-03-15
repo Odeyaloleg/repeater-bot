@@ -21,22 +21,22 @@ import           Telegram.UsersData
 botUri = "https://api.telegram.org/bot"
 
 execTelegramBot :: TelegramSettings -> IO ()
-execTelegramBot s = runTelegramBot 0 s (UsersData M.empty)
+execTelegramBot s = runTelegramBot s (UsersData M.empty) 0
 
-runTelegramBot :: Int -> TelegramSettings -> UsersData -> IO ()
-runTelegramBot offset settings d = do
-  recievedUpdates <- pollTelegram offset settings
+runTelegramBot :: TelegramSettings -> UsersData -> Int -> IO ()
+runTelegramBot s d offset = do
+  recievedUpdates <- pollTelegram s offset
   case recievedUpdates of
     BadRequest description -> putStrLn $ "TelegramBot error: " ++ description
     TelegramMsgs _ -> do
-      (sizeNum, lastUpdate, usersData) <- handleUpdates recievedUpdates settings (0, 0, d)
+      (sizeNum, lastUpdate, usersData) <- handleUpdates recievedUpdates s (0, 0, d)
       if sizeNum == 0
       then putStrLn $ "Didn't get any messages."
       else putStrLn $ "Handled " ++ show sizeNum ++ " messages."
-      runTelegramBot lastUpdate settings usersData
+      runTelegramBot s usersData lastUpdate
 
-pollTelegram :: Int -> TelegramSettings -> IO TelegramMsgs
-pollTelegram offset s = do
+pollTelegram :: TelegramSettings -> Int -> IO TelegramMsgs
+pollTelegram s offset = do
   request <- parseRequest (botUri ++ botToken s ++ "/getUpdates?timeout=" ++ show (pollingTimeout s) ++ "&offset=" ++ show (offset + 1))
   response <- httpJSON $ request { responseTimeout = ResponseTimeoutNone
                                  , proxy = proxyServer s }

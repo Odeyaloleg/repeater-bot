@@ -39,7 +39,8 @@ instance ToJSON TelegramKBButton where
   toJSON (TelegramKBButton btnText) =
     object [ "text" .= btnText ]
 
-data TelegramReplyMarkup = TelegramKBMarkup [[TelegramKBButton]] | TelegramKBRemove
+data TelegramReplyMarkup = TelegramKBMarkup [[TelegramKBButton]]
+                         | TelegramKBRemove
 
 instance ToJSON TelegramReplyMarkup where
   toJSON (TelegramKBMarkup kb) =
