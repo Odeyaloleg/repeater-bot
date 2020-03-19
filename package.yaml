@@ -27,6 +27,9 @@ dependencies:
 - http-types
 - bytestring
 - containers
+- async
+- wai
+- warp
 
 library:
   source-dirs: src

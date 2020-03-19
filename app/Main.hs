@@ -1,8 +1,10 @@
 module Main where
 
+import Control.Concurrent.Async ( async )
 import Config
 import TelegramBot
 import Telegram.Settings
+import SlackBot
 
 main :: IO ()
 main = do
@@ -11,7 +13,10 @@ main = do
   case botConfig of
     Left e           -> putStrLn $ "Config error: " ++ e
     Right botConfig' -> do
+
       let telegramSettings = setTelegramSettings botConfig'
       case telegramSettings of
-        Nothing               -> putStrLn "Couldn't parse Telegram settings properly. Telegram bot wasn't executed."
-        Just telegramSettings' -> execTelegramBot telegramSettings'
+        Nothing               -> async $ putStrLn "Couldn't parse Telegram settings properly. Telegram bot wasn't executed." -- I don't like this being in separate thread. But how else?
+        Just telegramSettings' -> async $ execTelegramBot telegramSettings'
+
+      execSlackBot

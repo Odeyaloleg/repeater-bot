@@ -7,7 +7,7 @@ module TelegramBot
 import           Network.HTTP.Simple
 import           Network.HTTP.Client.Internal
 import qualified Network.HTTP.Types as HTTP ( hContentType )
-import qualified Data.ByteString.Lazy as BSL ( ByteString, fromStrict )
+import qualified Data.ByteString.Lazy as BSL ( ByteString )
 import           Data.Aeson
 import           Data.Aeson.Types ( Object )
 import           Data.Maybe ( fromJust )
@@ -39,8 +39,8 @@ runTelegramBot s d lastUpdId = do
     TelegramMsgs _ -> do
       handlerData <- handleUpdates recievedUpdates s (HandlerData 0 0 d)
       if succeedAnswersSize handlerData == 0
-      then putStrLn $ "Didn't get any possible for handling messages."
-      else putStrLn $ "Handled " ++ show (succeedAnswersSize handlerData) ++ " messages."
+      then putStrLn $ "Telegram: Didn't get any messages possible for handling."
+      else putStrLn $ "Telegram: Handled " ++ show (succeedAnswersSize handlerData) ++ " messages."
       runTelegramBot s (usersData handlerData) (lastUpdateId handlerData)
 
 pollTelegram :: TelegramSettings -> LastUpdateId -> IO TelegramMsgs
