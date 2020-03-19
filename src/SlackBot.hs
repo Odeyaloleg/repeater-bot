@@ -33,6 +33,11 @@ application request respond = do
                  (BSL.fromStrict (BS8.pack "Couldn't handle data."))
     Just slackResponse -> case slackResponse of
       SlackResponse Nothing (Just textMsg) -> do
+        let request1 = parseRequest_ "https://slack.com/api/chat.postMessage"
+        response1 <- httpLBS $ request1 { method = "POST"
+                            , requestBody = RequestBodyLBS $ encode $ SlackTextMessageJSON "" "CV2TXJJ59" textMsg
+                            , requestHeaders = [(hContentType, "application/json"), ("Authorization", "Bearer xoxb-1002281197031-1003821527671-zYxsp01CQMbgN6lQqDDYiBBl")] }
+        BSL8.putStrLn $ getResponseBody response1
         putStrLn "Text message was sent."
         respond $ responseLBS
                   status200
