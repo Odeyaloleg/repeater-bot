@@ -34,22 +34,21 @@ application request respond = do
                  [(hContentType, "text/html")]
                  (BSL.fromStrict (BS8.pack "Couldn't handle data."))
     Just slackResponse -> case slackResponse of
-      SlackResponse Nothing (Just textMsg) -> do
-        let request1 = parseRequest_ "https://slack.com/api/chat.postMessage"
-        response1 <- httpLBS $ request1 { method = "POST"
-                            , requestBody = RequestBodyLBS $ encode $ SlackTextMessageJSON "" "CV2TXJJ59" textMsg
-                            , requestHeaders = [(hContentType, "application/json"), ("Authorization", slackToken)] }
-        BSL8.putStrLn $ getResponseBody response1
-        putStrLn "Text message was sent."
+      SlackTextMessage textMessage -> do
+        case textMessage of
+          Just textMessage' -> do
+            let request1 = parseRequest_ "https://slack.com/api/chat.postMessage"
+            response1 <- httpLBS $ request1 { method = "POST"
+                                            , requestBody = RequestBodyLBS $ encode $ SlackTextMessageJSON "" "CV2TXJJ59" textMessage'
+                                            , requestHeaders = [(hContentType, "application/json"), ("Authorization", slackToken)] }
+            BSL8.putStrLn $ getResponseBody response1
+            putStrLn "Text message was sent."
+          Nothing -> return ()
         respond $ responseLBS
                   status200
                   [(hContentType, "application/json")]
                   (BSL.fromStrict (BS8.pack "Success."))
-      SlackResponse (Just challenge) Nothing -> respond $ responseLBS
-                                                          status200
-                                                          [(hContentType, "application/json")]
-                                                          (encode (SlackChallengeJSON challenge))
-      SlackResponse Nothing Nothing -> respond $ responseLBS
-                                                 status200
-                                                 [(hContentType, "application/json")]
-                                                 (BSL.fromStrict (BS8.pack "Success."))
+      SlackChallenge challenge -> respond $ responseLBS
+                                            status200
+                                            [(hContentType, "application/json")]
+                                            (encode (SlackChallengeJSON challenge))
