@@ -4,18 +4,14 @@ module Telegram.Parsing where
 
 import Data.Aeson
 
-data TelegramMsgs = TelegramMsgs [TelegramMsg] | BadRequest { description :: String }
+data TelegramUpdates = TelegramUpdates [TelegramMsg] | BadRequest String
 
-instance FromJSON TelegramMsgs where
-  parseJSON (Object telegramMsgs) = do
-    isOk <- telegramMsgs .: "ok"
+instance FromJSON TelegramUpdates where
+  parseJSON (Object updatesObject) = do
+    isOk <- updatesObject .: "ok"
     case isOk of
-      False -> do
-        description <- telegramMsgs .: "description"
-        return $ BadRequest description
-      True  -> do
-        msgs <- telegramMsgs .: "result"
-        return $ TelegramMsgs msgs
+      False -> BadRequest <$> updatesObject .: "description"
+      True  -> TelegramUpdates <$> updatesObject .: "result"
 
 data TelegramMsg = TelegramMsg
                      { updateId :: Int
@@ -39,9 +35,7 @@ data TelegramSticker = TelegramSticker
                          { stickerUniqueId :: String }
 
 instance FromJSON TelegramSticker where
-  parseJSON (Object stickerObject) = do
-    stickerId <- stickerObject .: "file_id"
-    return $ TelegramSticker stickerId
+  parseJSON (Object stickerObject) = TelegramSticker <$> stickerObject .: "file_id"
 
 data TelegramEntity = TelegramEntity
                         { offset       :: Int

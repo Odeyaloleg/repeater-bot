@@ -36,24 +36,24 @@ runTelegramBot s d lastUpdId = do
   recievedUpdates <- pollTelegram s lastUpdId
   case recievedUpdates of
     BadRequest description -> putStrLn $ "TelegramBot error: " ++ description
-    TelegramMsgs _ -> do
+    TelegramUpdates _ -> do
       handlerData <- handleUpdates recievedUpdates s (HandlerData 0 0 d)
       if succeedAnswersSize handlerData == 0
       then putStrLn $ "Telegram: Didn't get any messages possible for handling."
       else putStrLn $ "Telegram: Handled " ++ show (succeedAnswersSize handlerData) ++ " messages."
       runTelegramBot s (usersData handlerData) (lastUpdateId handlerData)
 
-pollTelegram :: TelegramSettings -> LastUpdateId -> IO TelegramMsgs
+pollTelegram :: TelegramSettings -> LastUpdateId -> IO TelegramUpdates
 pollTelegram s lastUpdId = do
   let offset = lastUpdId + 1
   request <- parseRequest (botUri ++ botToken s ++ "/getUpdates?timeout=" ++ show (pollingTimeout s) ++ "&offset=" ++ show offset)
   response <- httpJSON $ request { responseTimeout = ResponseTimeoutNone
                                  , proxy = proxyServer s }
-  return $ (getResponseBody response :: TelegramMsgs)
+  return $ (getResponseBody response :: TelegramUpdates)
 
-handleUpdates :: TelegramMsgs -> TelegramSettings -> HandlerData -> IO HandlerData
-handleUpdates (TelegramMsgs [])         s handlerData = return handlerData
-handleUpdates (TelegramMsgs (msg:rest)) s handlerData = do
+handleUpdates :: TelegramUpdates -> TelegramSettings -> HandlerData -> IO HandlerData
+handleUpdates (TelegramUpdates [])         s handlerData = return handlerData
+handleUpdates (TelegramUpdates (msg:rest)) s handlerData = do
   let d = accessUsersData (usersData handlerData)
   let usersData = case M.member (chatId msg) d of
         True  -> d
@@ -67,25 +67,25 @@ handleUpdates (TelegramMsgs (msg:rest)) s handlerData = do
           case result of
             Nothing -> do
               sendAnswerNTimes 1 "sendMessage" (TelegramMsgJSON (chatId msg) Nothing "Incorrent answer. Please choose one of the buttons or input digit from 1 to 5." Nothing)
-              handleUpdates (TelegramMsgs rest) s (HandlerData ((succeedAnswersSize handlerData) + 1) (updateId msg) (UsersData usersData))
+              handleUpdates (TelegramUpdates rest) s (HandlerData ((succeedAnswersSize handlerData) + 1) (updateId msg) (UsersData usersData))
             Just n  -> do
               sendAnswerNTimes 1 "sendMessage" (TelegramMsgJSON (chatId msg) Nothing ("I will repeat your messages " ++ show n ++ " times.") (Just TelegramKBRemove))
-              handleUpdates (TelegramMsgs rest) s (HandlerData ((succeedAnswersSize handlerData) + 1) (updateId msg) (UsersData (M.insert (chatId msg) (False, n) d)))
+              handleUpdates (TelegramUpdates rest) s (HandlerData ((succeedAnswersSize handlerData) + 1) (updateId msg) (UsersData (M.insert (chatId msg) (False, n) d)))
         else do
           if head msgText' == '/'
             then do
               sendAnswerToCommand msgText'
               if msgText' == "/repeat"
-                then handleUpdates (TelegramMsgs rest) s (HandlerData ((succeedAnswersSize handlerData) + 1) (updateId msg) (UsersData (M.insert (chatId msg) (True, repetitionsNum) usersData)))
-                else handleUpdates (TelegramMsgs rest) s (HandlerData ((succeedAnswersSize handlerData) + 1) (updateId msg) (UsersData usersData))
+                then handleUpdates (TelegramUpdates rest) s (HandlerData ((succeedAnswersSize handlerData) + 1) (updateId msg) (UsersData (M.insert (chatId msg) (True, repetitionsNum) usersData)))
+                else handleUpdates (TelegramUpdates rest) s (HandlerData ((succeedAnswersSize handlerData) + 1) (updateId msg) (UsersData usersData))
             else do
               sendAnswerNTimes repetitionsNum "sendMessage" (composeTextMsgRequest msg)
-              handleUpdates (TelegramMsgs rest) s (HandlerData ((succeedAnswersSize handlerData) + 1) (updateId msg) (UsersData usersData))
+              handleUpdates (TelegramUpdates rest) s (HandlerData ((succeedAnswersSize handlerData) + 1) (updateId msg) (UsersData usersData))
     Nothing ->
       case sticker msg of
         Just sticker' -> do
           sendAnswerNTimes repetitionsNum "sendSticker" (TelegramStickerJSON (chatId msg) (stickerUniqueId sticker'))
-          handleUpdates (TelegramMsgs rest) s (HandlerData ((succeedAnswersSize handlerData) + 1) (updateId msg) (UsersData usersData))
+          handleUpdates (TelegramUpdates rest) s (HandlerData ((succeedAnswersSize handlerData) + 1) (updateId msg) (UsersData usersData))
         Nothing -> do
           return $ HandlerData (succeedAnswersSize handlerData) (updateId msg) (UsersData usersData)
   where sendAnswerNTimes n telegramMethod answerBody = do

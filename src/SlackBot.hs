@@ -21,6 +21,8 @@ execSlackBot :: IO ()
 execSlackBot = do
   runSettings (setHost "192.168.0.137" defaultSettings) application
 
+slackToken = BS8.pack "Bearer <token>"
+
 application :: Application
 application request respond = do
   putStrLn "\nTriggered."
@@ -36,7 +38,7 @@ application request respond = do
         let request1 = parseRequest_ "https://slack.com/api/chat.postMessage"
         response1 <- httpLBS $ request1 { method = "POST"
                             , requestBody = RequestBodyLBS $ encode $ SlackTextMessageJSON "" "CV2TXJJ59" textMsg
-                            , requestHeaders = [(hContentType, "application/json"), ("Authorization", "Bearer xoxb-1002281197031-1003821527671-zYxsp01CQMbgN6lQqDDYiBBl")] }
+                            , requestHeaders = [(hContentType, "application/json"), ("Authorization", slackToken)] }
         BSL8.putStrLn $ getResponseBody response1
         putStrLn "Text message was sent."
         respond $ responseLBS
