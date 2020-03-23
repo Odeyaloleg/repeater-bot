@@ -47,9 +47,9 @@ runTelegramBot s d lastUpdId = do
 pollTelegram :: TelegramSettings -> LastUpdateId -> IO TelegramUpdates
 pollTelegram s lastUpdId = do
   let offset = lastUpdId + 1
-  request <- parseRequest $ botUri ++ botToken s ++ "/getUpdates?timeout=" ++ show (pollingTimeout s) ++ "&offset=" ++ show offset
+  request <- parseRequest $ botUri ++ (botToken (requestSettings s)) ++ "/getUpdates?timeout=" ++ show (pollingTimeout s) ++ "&offset=" ++ show offset
   response <- httpJSON $ request { responseTimeout = ResponseTimeoutNone
-                                 , proxy = proxyServer s }
+                                 , proxy = proxyServer (requestSettings s) }
   return $ (getResponseBody response :: TelegramUpdates)
 
 handleUpdates :: [TelegramMsgUpdate] -> TelegramSettings -> HandlerData -> IO HandlerData
@@ -66,10 +66,10 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) s (HandlerData s
           result <- readRepetitions textMsg
           case result of
             Nothing -> do
-              sendAnswerNTimes 1 "sendMessage" s (TelegramMsgJSON chatId Nothing "Incorrent answer. Please choose one of the buttons or input digit from 1 to 5." Nothing)
+              sendAnswerNTimes 1 "sendMessage" (requestSettings s) (TelegramMsgJSON chatId Nothing "Incorrent answer. Please choose one of the buttons or input digit from 1 to 5." Nothing)
               handleUpdates rest s (HandlerData (succeedAnswersSize + 1) updateId usersData)
             Just n  -> do
-              sendAnswerNTimes 1 "sendMessage" s (TelegramMsgJSON chatId Nothing ("I will repeat your messages " ++ show n ++ " times.") (Just TelegramKBRemove))
+              sendAnswerNTimes 1 "sendMessage" (requestSettings s) (TelegramMsgJSON chatId Nothing ("I will repeat your messages " ++ show n ++ " times.") (Just TelegramKBRemove))
               handleUpdates rest s (HandlerData (succeedAnswersSize + 1) updateId (M.insert chatId (False, n) d))
         else do
           if head textMsg == '/'
@@ -79,10 +79,10 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) s (HandlerData s
                 then handleUpdates rest s (HandlerData (succeedAnswersSize + 1) updateId (M.insert chatId (True, repetitionsNum) usersData))
                 else handleUpdates rest s (HandlerData (succeedAnswersSize + 1) updateId usersData)
             else do
-              sendAnswerNTimes repetitionsNum "sendMessage" s (composeTextMsgRequest chatId textMsg entities)
+              sendAnswerNTimes repetitionsNum "sendMessage" (requestSettings s) (composeTextMsgRequest chatId textMsg entities)
               handleUpdates rest s (HandlerData (succeedAnswersSize + 1) updateId usersData)
     StickerMsg fileId -> do
-      sendAnswerNTimes repetitionsNum "sendSticker" s (TelegramStickerJSON chatId fileId)
+      sendAnswerNTimes repetitionsNum "sendSticker" (requestSettings s) (TelegramStickerJSON chatId fileId)
       handleUpdates rest s (HandlerData (succeedAnswersSize + 1) updateId usersData)
     UnknownMsg -> do
       putStrLn "Unknown Message"
@@ -92,14 +92,14 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) s (HandlerData s
                 "/help"      -> TelegramMsgJSON chatId Nothing (helpMessage s) Nothing
                 "/repeat"    -> TelegramMsgJSON chatId Nothing (repeatMessage s) (Just (TelegramKBMarkup [[TelegramKBButton "1",TelegramKBButton "2",TelegramKBButton "3",TelegramKBButton "4",TelegramKBButton "5"]]))
                 commandText' -> TelegramMsgJSON chatId Nothing ("Unknown command " ++ commandText' ++ ".") Nothing
-          sendAnswerNTimes 1 "sendMessage" s answerMsg
+          sendAnswerNTimes 1 "sendMessage" (requestSettings s) answerMsg
         readRepetitions t = do
           res <- try $ return $ read t :: IO (Either SomeException Int)
           case res of
             Right n -> if n > 0 && n < 6 then return (Just n) else return Nothing
             Left _  -> return Nothing
 
-sendAnswerNTimes :: (ToJSON a) => Int -> TelegramMethod -> TelegramSettings -> a -> IO (Response Object)
+sendAnswerNTimes :: (ToJSON a) => Int -> TelegramMethod -> RequestSettings -> a -> IO (Response Object)
 sendAnswerNTimes n telegramMethod s answerBody = do
   answer <- parseRequest $ botUri ++ botToken s ++ "/" ++ telegramMethod
   repeatAnswer n answer { method = "POST"

@@ -1,22 +1,25 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Telegram.Settings
-  ( TelegramSettings, botToken, proxyServer, pollingTimeout, repeatsNum
-  , helpMessage, repeatMessage, setTelegramSettings ) where
+  ( TelegramSettings, RequestSettings (..), pollingTimeout, repeatsNum
+  , helpMessage, repeatMessage, setTelegramSettings, requestSettings
+  ) where
 
 import qualified Data.Map.Strict as MS        ( Map, lookup )
 import qualified Data.ByteString.Char8 as BS8 ( ByteString, null, unpack, readInt )
-import           Data.Maybe                   ( fromJust )
 import           Network.HTTP.Client          ( Proxy ( Proxy ) )
 import           Control.Monad                ( (>>=) )
 
 data TelegramSettings = TelegramSettings
-                          { botToken       :: String
-                          , proxyServer    :: Maybe Proxy
-                          , pollingTimeout :: Int
-                          , repeatsNum     :: Int
-                          , helpMessage    :: String
-                          , repeatMessage  :: String }
+                          { requestSettings :: RequestSettings
+                          , pollingTimeout  :: Int
+                          , repeatsNum      :: Int
+                          , helpMessage     :: String
+                          , repeatMessage   :: String }
+
+data RequestSettings = RequestSettings
+                         { botToken    :: String
+                         , proxyServer :: Maybe Proxy }
 
 setTelegramSettings :: MS.Map BS8.ByteString BS8.ByteString -> Maybe TelegramSettings
 setTelegramSettings settingsMap = do
@@ -43,4 +46,4 @@ setTelegramSettings settingsMap = do
     (\t -> if BS8.null t then Nothing else Just (BS8.unpack t))
   parsedRepeatMsg <- MS.lookup "CommandRepeat" settingsMap >>=
     (\t -> if BS8.null t then Nothing else Just (BS8.unpack t))
-  return $ TelegramSettings parsedToken parsedProxyServer parsedPollingTimeout parsedRepititions parsedHelpMsg parsedRepeatMsg
+  return $ TelegramSettings (RequestSettings parsedToken parsedProxyServer) parsedPollingTimeout parsedRepititions parsedHelpMsg parsedRepeatMsg
