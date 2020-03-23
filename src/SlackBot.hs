@@ -19,7 +19,7 @@ import           Slack.ToJSON
 
 execSlackBot :: IO ()
 execSlackBot = do
-  runSettings (setHost "192.168.0.137" defaultSettings) application
+  runSettings (setHost "192.168.0.139" defaultSettings) application
 
 slackToken = BS8.pack "Bearer <token>"
 

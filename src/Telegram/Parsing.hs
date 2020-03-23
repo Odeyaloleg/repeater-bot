@@ -3,8 +3,9 @@
 module Telegram.Parsing where
 
 import Data.Aeson
+import Data.Foldable ( asum )
 
-data TelegramUpdates = TelegramUpdates [TelegramMsg] | BadRequest String
+data TelegramUpdates = TelegramUpdates [TelegramMsgUpdate] | BadRequest String
 
 instance FromJSON TelegramUpdates where
   parseJSON (Object updatesObject) = do
@@ -13,29 +14,29 @@ instance FromJSON TelegramUpdates where
       False -> BadRequest <$> updatesObject .: "description"
       True  -> TelegramUpdates <$> updatesObject .: "result"
 
-data TelegramMsg = TelegramMsg
-                     { updateId :: Int
-                     , msgText  :: Maybe String
-                     , sticker  :: Maybe TelegramSticker
-                     , entities :: Maybe [TelegramEntity]
-                     , chatId   :: Int }
+type UpdateId = Int
+type ChatId   = Int
+
+data TelegramMsgUpdate = TelegramMsgUpdate UpdateId ChatId TelegramMsg
+
+instance FromJSON TelegramMsgUpdate where
+  parseJSON (Object msgUpdateObject) = do
+    TelegramMsgUpdate <$> msgUpdateObject .: "update_id"
+                      <*> (msgUpdateObject .: "message"
+                          >>= \messageObject -> messageObject .: "chat"
+                          >>= \chatObject    -> chatObject .: "id")
+                      <*> msgUpdateObject .: "message"
+
+data TelegramMsg = TextMsg String (Maybe [TelegramEntity])
+                  | StickerMsg String
+                  | UnknownMsg
 
 instance FromJSON TelegramMsg where
-  parseJSON (Object telegramMsg) = do
-    msgObject  <- telegramMsg .:  "message"
-    chatObject <- msgObject   .:  "chat"
-    updateId   <- telegramMsg .:  "update_id"
-    msgText    <- msgObject   .:? "text"
-    sticker    <- msgObject   .:? "sticker"
-    entities   <- msgObject   .:? "entities"
-    chatId     <- chatObject  .:  "id"
-    return $ TelegramMsg updateId msgText sticker entities chatId
-
-data TelegramSticker = TelegramSticker
-                         { stickerUniqueId :: String }
-
-instance FromJSON TelegramSticker where
-  parseJSON (Object stickerObject) = TelegramSticker <$> stickerObject .: "file_id"
+  parseJSON (Object msgObject) =
+    asum [ TextMsg <$> msgObject .: "text" <*> msgObject .:? "entities"
+         , StickerMsg <$> (msgObject .: "sticker"
+                          >>= \stickerObject -> stickerObject .: "file_id")
+         , return UnknownMsg ]
 
 data TelegramEntity = TelegramEntity
                         { offset       :: Int
@@ -44,9 +45,8 @@ data TelegramEntity = TelegramEntity
                         , url          :: Maybe String }
 
 instance FromJSON TelegramEntity where
-  parseJSON (Object entityObject) = do
-    offset     <- entityObject .:  "offset"
-    length     <- entityObject .:  "length"
-    entityType <- entityObject .:  "type"
-    url        <- entityObject .:? "url"
-    return $ TelegramEntity offset length entityType url
+  parseJSON (Object entityObject) =
+    TelegramEntity <$> entityObject .:  "offset"
+                   <*> entityObject .:  "length"
+                   <*> entityObject .:  "type"
+                   <*> entityObject .:? "url"

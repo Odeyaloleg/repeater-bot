@@ -20,6 +20,7 @@ import           Telegram.UsersData
 
 type SucceedAnswersSize = Int
 type LastUpdateId       = Int
+type TelegramMethod     = String
 
 data HandlerData = HandlerData
                      { succeedAnswersSize :: SucceedAnswersSize
@@ -29,100 +30,101 @@ data HandlerData = HandlerData
 botUri = "https://api.telegram.org/bot"
 
 execTelegramBot :: TelegramSettings -> IO ()
-execTelegramBot s = runTelegramBot s (UsersData M.empty) 0
+execTelegramBot s = runTelegramBot s M.empty 0
 
 runTelegramBot :: TelegramSettings -> UsersData -> LastUpdateId -> IO ()
 runTelegramBot s d lastUpdId = do
   recievedUpdates <- pollTelegram s lastUpdId
   case recievedUpdates of
     BadRequest description -> putStrLn $ "TelegramBot error: " ++ description
-    TelegramUpdates _ -> do
-      handlerData <- handleUpdates recievedUpdates s (HandlerData 0 0 d)
-      if succeedAnswersSize handlerData == 0
+    TelegramUpdates updates -> do
+      (HandlerData x y d) <- handleUpdates updates s (HandlerData 0 0 d)
+      if x == 0
       then putStrLn $ "Telegram: Didn't get any messages possible for handling."
-      else putStrLn $ "Telegram: Handled " ++ show (succeedAnswersSize handlerData) ++ " messages."
-      runTelegramBot s (usersData handlerData) (lastUpdateId handlerData)
+      else putStrLn $ "Telegram: Handled " ++ show x ++ "/" ++ show (length updates) ++ " messages."
+      runTelegramBot s d y
 
 pollTelegram :: TelegramSettings -> LastUpdateId -> IO TelegramUpdates
 pollTelegram s lastUpdId = do
   let offset = lastUpdId + 1
-  request <- parseRequest (botUri ++ botToken s ++ "/getUpdates?timeout=" ++ show (pollingTimeout s) ++ "&offset=" ++ show offset)
+  request <- parseRequest $ botUri ++ botToken s ++ "/getUpdates?timeout=" ++ show (pollingTimeout s) ++ "&offset=" ++ show offset
   response <- httpJSON $ request { responseTimeout = ResponseTimeoutNone
                                  , proxy = proxyServer s }
   return $ (getResponseBody response :: TelegramUpdates)
 
-handleUpdates :: TelegramUpdates -> TelegramSettings -> HandlerData -> IO HandlerData
-handleUpdates (TelegramUpdates [])         s handlerData = return handlerData
-handleUpdates (TelegramUpdates (msg:rest)) s handlerData = do
-  let d = accessUsersData (usersData handlerData)
-  let usersData = case M.member (chatId msg) d of
+handleUpdates :: [TelegramMsgUpdate] -> TelegramSettings -> HandlerData -> IO HandlerData
+handleUpdates [] _ handlerData = return handlerData
+handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) s (HandlerData succeedAnswersSize lastUpdateId d) = do
+  let usersData = case M.member chatId d of
         True  -> d
-        False -> M.insert (chatId msg) (False, (repeatsNum s)) d
-  let (isAskedForRepetitions, repetitionsNum) = fromJust $ M.lookup (chatId msg) usersData
-  case msgText msg of
-    Just msgText' -> do
-      if isAskedForRepetitions == True
+        False -> M.insert chatId (False, (repeatsNum s)) d
+  let (isAskedForRepetitions, repetitionsNum) = fromJust $ M.lookup chatId usersData
+  case update of
+    TextMsg textMsg entities -> do
+      if isAskedForRepetitions
         then do
-          result <- readRepetitions msgText'
+          result <- readRepetitions textMsg
           case result of
             Nothing -> do
-              sendAnswerNTimes 1 "sendMessage" (TelegramMsgJSON (chatId msg) Nothing "Incorrent answer. Please choose one of the buttons or input digit from 1 to 5." Nothing)
-              handleUpdates (TelegramUpdates rest) s (HandlerData ((succeedAnswersSize handlerData) + 1) (updateId msg) (UsersData usersData))
+              sendAnswerNTimes 1 "sendMessage" s (TelegramMsgJSON chatId Nothing "Incorrent answer. Please choose one of the buttons or input digit from 1 to 5." Nothing)
+              handleUpdates rest s (HandlerData (succeedAnswersSize + 1) updateId usersData)
             Just n  -> do
-              sendAnswerNTimes 1 "sendMessage" (TelegramMsgJSON (chatId msg) Nothing ("I will repeat your messages " ++ show n ++ " times.") (Just TelegramKBRemove))
-              handleUpdates (TelegramUpdates rest) s (HandlerData ((succeedAnswersSize handlerData) + 1) (updateId msg) (UsersData (M.insert (chatId msg) (False, n) d)))
+              sendAnswerNTimes 1 "sendMessage" s (TelegramMsgJSON chatId Nothing ("I will repeat your messages " ++ show n ++ " times.") (Just TelegramKBRemove))
+              handleUpdates rest s (HandlerData (succeedAnswersSize + 1) updateId (M.insert chatId (False, n) d))
         else do
-          if head msgText' == '/'
+          if head textMsg == '/'
             then do
-              sendAnswerToCommand msgText'
-              if msgText' == "/repeat"
-                then handleUpdates (TelegramUpdates rest) s (HandlerData ((succeedAnswersSize handlerData) + 1) (updateId msg) (UsersData (M.insert (chatId msg) (True, repetitionsNum) usersData)))
-                else handleUpdates (TelegramUpdates rest) s (HandlerData ((succeedAnswersSize handlerData) + 1) (updateId msg) (UsersData usersData))
+              sendAnswerToCommand textMsg
+              if textMsg == "/repeat"
+                then handleUpdates rest s (HandlerData (succeedAnswersSize + 1) updateId (M.insert chatId (True, repetitionsNum) usersData))
+                else handleUpdates rest s (HandlerData (succeedAnswersSize + 1) updateId usersData)
             else do
-              sendAnswerNTimes repetitionsNum "sendMessage" (composeTextMsgRequest msg)
-              handleUpdates (TelegramUpdates rest) s (HandlerData ((succeedAnswersSize handlerData) + 1) (updateId msg) (UsersData usersData))
-    Nothing ->
-      case sticker msg of
-        Just sticker' -> do
-          sendAnswerNTimes repetitionsNum "sendSticker" (TelegramStickerJSON (chatId msg) (stickerUniqueId sticker'))
-          handleUpdates (TelegramUpdates rest) s (HandlerData ((succeedAnswersSize handlerData) + 1) (updateId msg) (UsersData usersData))
-        Nothing -> do
-          return $ HandlerData (succeedAnswersSize handlerData) (updateId msg) (UsersData usersData)
-  where sendAnswerNTimes n telegramMethod answerBody = do
-          let answer = setRequestProxy (proxyServer s)
-                $ parseRequest_ (botUri ++ botToken s ++ "/" ++ telegramMethod)
-          repeatAnswer n answer { method = "POST"
-                                , requestBody = RequestBodyLBS $ encode $ answerBody
-                                , requestHeaders = [(HTTP.hContentType, "application/json")] }
-        repeatAnswer 1 answer = httpJSON answer :: IO (Response Object)
-        repeatAnswer n answer = do httpJSON answer :: IO (Response Object); repeatAnswer (n-1) answer
-        sendAnswerToCommand commandText = do
-          let answerText = case commandText of
-                "/help"   -> encode $ TelegramMsgJSON (chatId msg) Nothing (helpMessage s) Nothing
-                "/repeat" -> encode $ TelegramMsgJSON (chatId msg) Nothing (repeatMessage s) (Just (TelegramKBMarkup [[TelegramKBButton "1",TelegramKBButton "2",TelegramKBButton "3",TelegramKBButton "4",TelegramKBButton "5"]]))
-                commandText' -> encode $ TelegramMsgJSON (chatId msg) Nothing ("Unknown command " ++ commandText' ++ ".") Nothing
-          let answer = setRequestProxy (proxyServer s)
-                $ parseRequest_ (botUri ++ botToken s ++ "/sendMessage")
-          httpJSON $ answer { method = "POST"
-                            , requestBody = RequestBodyLBS $ answerText
-                            , requestHeaders = [(HTTP.hContentType, "application/json")] } :: IO (Response Object)
+              sendAnswerNTimes repetitionsNum "sendMessage" s (composeTextMsgRequest chatId textMsg entities)
+              handleUpdates rest s (HandlerData (succeedAnswersSize + 1) updateId usersData)
+    StickerMsg fileId -> do
+      sendAnswerNTimes repetitionsNum "sendSticker" s (TelegramStickerJSON chatId fileId)
+      handleUpdates rest s (HandlerData (succeedAnswersSize + 1) updateId usersData)
+    UnknownMsg -> do
+      putStrLn "Unknown Message"
+      return $ HandlerData succeedAnswersSize updateId usersData
+  where sendAnswerToCommand commandText = do
+          let answerMsg = case commandText of
+                "/help"      -> TelegramMsgJSON chatId Nothing (helpMessage s) Nothing
+                "/repeat"    -> TelegramMsgJSON chatId Nothing (repeatMessage s) (Just (TelegramKBMarkup [[TelegramKBButton "1",TelegramKBButton "2",TelegramKBButton "3",TelegramKBButton "4",TelegramKBButton "5"]]))
+                commandText' -> TelegramMsgJSON chatId Nothing ("Unknown command " ++ commandText' ++ ".") Nothing
+          sendAnswerNTimes 1 "sendMessage" s answerMsg
         readRepetitions t = do
           res <- try $ return $ read t :: IO (Either SomeException Int)
           case res of
             Right n -> if n > 0 && n < 6 then return (Just n) else return Nothing
             Left _  -> return Nothing
 
-composeTextMsgRequest :: TelegramMsg -> TelegramMsgJSON
-composeTextMsgRequest msg =
-  case entities msg of
-    Nothing        -> TelegramMsgJSON (chatId msg) Nothing (fromJust (msgText msg)) Nothing
-    Just entities' -> TelegramMsgJSON (chatId msg) (Just "Markdown") (parseEntities entities' ("", fromJust (msgText msg)) 0) Nothing
-    where parseEntities [] (composedText, textRest) _ = composedText ++ textRest
-          parseEntities (entity:eRest) (composedText, textRest) parsedLength = 
-            let (beforeEntity, eTextAndRest) = splitAt ((offset entity) - parsedLength) textRest
-                (entityText, afterEntity) = splitAt (entityLength entity) eTextAndRest
-            in parseEntities eRest (composedText ++ beforeEntity ++ composeEntityText entityText (entityType entity) (url entity), afterEntity) (offset entity + entityLength entity)
-          composeEntityText entityText' "text_link" (Just url) = "[" ++ entityText' ++ "](" ++ url ++ ")"
-          composeEntityText entityText' "bold"      _          = "*" ++ entityText' ++ "*"
-          composeEntityText entityText' "italic"    _          = "_" ++ entityText' ++ "_"
-          composeEntityText entityText' _           _          = entityText'
+sendAnswerNTimes :: (ToJSON a) => Int -> TelegramMethod -> TelegramSettings -> a -> IO (Response Object)
+sendAnswerNTimes n telegramMethod s answerBody = do
+  answer <- parseRequest $ botUri ++ botToken s ++ "/" ++ telegramMethod
+  repeatAnswer n answer { method = "POST"
+                        , proxy = proxyServer s
+                        , requestBody = RequestBodyLBS $ encode $ answerBody
+                        , requestHeaders = [(HTTP.hContentType, "application/json")] }
+  where
+  repeatAnswer 1 answer = httpJSON answer :: IO (Response Object)
+  repeatAnswer n answer = do
+    httpJSON answer :: IO (Response Object)
+    repeatAnswer (n-1) answer
+
+composeTextMsgRequest :: ChatId -> String -> Maybe [TelegramEntity] -> TelegramMsgJSON
+composeTextMsgRequest chatId textMsg entities =
+  case entities of
+    Nothing        -> TelegramMsgJSON chatId Nothing textMsg Nothing
+    Just entities' -> TelegramMsgJSON chatId (Just "Markdown") (parseEntities entities' ("", textMsg) 0) Nothing
+  where
+  parseEntities [] (composedText, notParsed) _ = composedText ++ notParsed
+  parseEntities (entity:eRest) (composedText, notParsed) parsedLength = 
+    let (beforeEntity, eTextAndRest) = splitAt ((offset entity) - parsedLength) notParsed
+        (entityText, afterEntity)    = splitAt (entityLength entity) eTextAndRest
+    in parseEntities eRest (composedText ++ beforeEntity ++ composeEntityText entityText (entityType entity) (url entity), afterEntity) (offset entity + entityLength entity)
+  
+  composeEntityText entityText' "text_link" (Just url) = "[" ++ entityText' ++ "](" ++ url ++ ")"
+  composeEntityText entityText' "bold"      _          = "*" ++ entityText' ++ "*"
+  composeEntityText entityText' "italic"    _          = "_" ++ entityText' ++ "_"
+  composeEntityText entityText' _           _          = entityText'
