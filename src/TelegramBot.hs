@@ -74,7 +74,8 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) s (HandlerData s
         else do
           if head textMsg == '/'
             then do
-              sendAnswerToCommand textMsg
+              res <- readRepetitions textMsg
+              sendAnswerToCommand textMsg (fromJust res)
               if textMsg == "/repeat"
                 then handleUpdates rest s (HandlerData (succeedAnswersSize + 1) updateId (M.insert chatId (True, repetitionsNum) usersData))
                 else handleUpdates rest s (HandlerData (succeedAnswersSize + 1) updateId usersData)
@@ -87,10 +88,10 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) s (HandlerData s
     UnknownMsg -> do
       putStrLn "Unknown Message"
       return $ HandlerData succeedAnswersSize updateId usersData
-  where sendAnswerToCommand commandText = do
+  where sendAnswerToCommand commandText repetitionsNum = do
           let answerMsg = case commandText of
                 "/help"      -> TelegramMsgJSON chatId Nothing (helpMessage s) Nothing
-                "/repeat"    -> TelegramMsgJSON chatId Nothing (repeatMessage s) (Just (TelegramKBMarkup [[TelegramKBButton "1",TelegramKBButton "2",TelegramKBButton "3",TelegramKBButton "4",TelegramKBButton "5"]]))
+                "/repeat"    -> TelegramMsgJSON chatId Nothing (repeatMessage s ++ " Now I am repeating your messages " ++ show repetitionsNum ++ " times.") (Just (TelegramKBMarkup [[TelegramKBButton "1",TelegramKBButton "2",TelegramKBButton "3",TelegramKBButton "4",TelegramKBButton "5"]]))
                 commandText' -> TelegramMsgJSON chatId Nothing ("Unknown command " ++ commandText' ++ ".") Nothing
           sendAnswerNTimes 1 "sendMessage" (requestSettings s) answerMsg
         readRepetitions t = do
@@ -119,10 +120,10 @@ composeTextMsgRequest chatId textMsg entities =
     Just entities' -> TelegramMsgJSON chatId (Just "Markdown") (parseEntities entities' ("", textMsg) 0) Nothing
   where
   parseEntities [] (composedText, notParsed) _ = composedText ++ notParsed
-  parseEntities (entity:eRest) (composedText, notParsed) parsedLength = 
-    let (beforeEntity, eTextAndRest) = splitAt ((offset entity) - parsedLength) notParsed
-        (entityText, afterEntity)    = splitAt (entityLength entity) eTextAndRest
-    in parseEntities eRest (composedText ++ beforeEntity ++ composeEntityText entityText (entityType entity) (url entity), afterEntity) (offset entity + entityLength entity)
+  parseEntities ((TelegramEntity offset eLength eType eUrl):eRest) (composedText, notParsed) parsedLength = 
+    let (beforeEntity, eTextAndRest) = splitAt (offset - parsedLength) notParsed
+        (entityText, afterEntity)    = splitAt eLength eTextAndRest
+    in parseEntities eRest (composedText ++ beforeEntity ++ composeEntityText entityText eType eUrl, afterEntity) (offset + eLength)
   
   composeEntityText entityText' "text_link" (Just url) = "[" ++ entityText' ++ "](" ++ url ++ ")"
   composeEntityText entityText' "bold"      _          = "*" ++ entityText' ++ "*"

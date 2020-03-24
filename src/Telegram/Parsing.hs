@@ -14,8 +14,12 @@ instance FromJSON TelegramUpdates where
       False -> BadRequest <$> updatesObject .: "description"
       True  -> TelegramUpdates <$> updatesObject .: "result"
 
-type UpdateId = Int
-type ChatId   = Int
+type UpdateId     = Int
+type ChatId       = Int
+type Offset       = Int
+type EntityLength = Int
+type EntityType   = String
+type EntityUrl    = Maybe String
 
 data TelegramMsgUpdate = TelegramMsgUpdate UpdateId ChatId TelegramMsg
 
@@ -38,11 +42,7 @@ instance FromJSON TelegramMsg where
                           >>= \stickerObject -> stickerObject .: "file_id")
          , return UnknownMsg ]
 
-data TelegramEntity = TelegramEntity
-                        { offset       :: Int
-                        , entityLength :: Int
-                        , entityType   :: String 
-                        , url          :: Maybe String }
+data TelegramEntity = TelegramEntity Offset EntityLength EntityType EntityUrl
 
 instance FromJSON TelegramEntity where
   parseJSON (Object entityObject) =
