@@ -5,6 +5,7 @@ import Config
 import TelegramBot
 import Telegram.Settings
 import SlackBot
+import Slack.Settings
 
 main :: IO ()
 main = do
@@ -16,7 +17,10 @@ main = do
 
       let telegramSettings = setTelegramSettings botConfig'
       case telegramSettings of
-        Nothing               -> putStrLn "Couldn't parse Telegram settings properly. Telegram bot wasn't executed." -- I don't like this being in separate thread. But how else?
-        Just telegramSettings' -> execTelegramBot telegramSettings'
+        Nothing               -> async $ putStrLn $ "Couldn't parse Telegram settings properly. Telegram bot wasn't executed." -- I don't like this being in separate thread. But how else?
+        Just telegramSettings' -> async $ execTelegramBot telegramSettings'
 
-      -- execSlackBot
+      let slackSettings = setSlackSettings botConfig'
+      case slackSettings of
+        Nothing             -> putStrLn $ "Couldn't parse Slack settings properly. Slack bot wasn't executed."
+        Just slackSettings' -> execSlackBot slackSettings'

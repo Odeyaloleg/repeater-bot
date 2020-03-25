@@ -30,6 +30,7 @@ dependencies:
 - async
 - wai
 - warp
+- streaming-commons
 
 library:
   source-dirs: src
