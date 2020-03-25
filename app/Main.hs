@@ -16,7 +16,7 @@ main = do
 
       let telegramSettings = setTelegramSettings botConfig'
       case telegramSettings of
-        Nothing               -> async $ putStrLn "Couldn't parse Telegram settings properly. Telegram bot wasn't executed." -- I don't like this being in separate thread. But how else?
-        Just telegramSettings' -> async $ execTelegramBot telegramSettings'
+        Nothing               -> putStrLn "Couldn't parse Telegram settings properly. Telegram bot wasn't executed." -- I don't like this being in separate thread. But how else?
+        Just telegramSettings' -> execTelegramBot telegramSettings'
 
-      execSlackBot
+      -- execSlackBot
