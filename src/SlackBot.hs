@@ -33,6 +33,7 @@ application :: String -> WAI.Application
 application botToken request respond = do
   putStrLn $ "\nTriggered."
   reqBody <- WAI.strictRequestBody request
+  BSL8.putStrLn reqBody
   let parsedRequest = decode reqBody :: Maybe SlackMsg
   case parsedRequest of
     Nothing -> do
@@ -41,12 +42,12 @@ application botToken request respond = do
 
 handleSlackMsg :: SlackMsg -> String -> (WAI.Response -> IO WAI.ResponseReceived) -> IO WAI.ResponseReceived
 handleSlackMsg slackMsg botToken respond = case slackMsg of
-  SlackTextMessage textMessage -> do
-    case textMessage of
-      Just textMessage' -> do
-        sendAnswerNTimes 1 "chat.postMessage" botToken (SlackTextMessageJSON "CV2TXJJ59" textMessage')
-        putStrLn "Text message was sent."
-      Nothing -> putStrLn "Bot's msg."
+  SlackTextMessage channelId textMessage -> do
+    sendAnswerNTimes 1 "chat.postMessage" botToken (SlackTextMessageJSON channelId textMessage)
+    putStrLn "Text message was sent."
+    respond $ dataRecieved
+  SlackOwnMessage -> do
+    putStrLn "Own message."
     respond $ dataRecieved
   SlackChallenge challenge -> respond $ WAI.responseLBS
                                           status200

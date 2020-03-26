@@ -7,7 +7,11 @@ import Data.Aeson.Types ( Parser )
 
 -- Bad architecture. Will refactor after more deep understanding of Slack.
 
-data SlackMsg = SlackChallenge String | SlackTextMessage (Maybe String)
+type ChannelId = String
+
+data SlackMsg = SlackChallenge String
+              | SlackTextMessage ChannelId String
+              | SlackOwnMessage
 
 instance FromJSON SlackMsg where
   parseJSON (Object response) = do
@@ -22,5 +26,6 @@ instance FromJSON SlackMsg where
         case botId of
           Nothing -> do
             textMessage <- eventObj .: "text"
-            return $ SlackTextMessage (Just textMessage)
-          _ -> return $ SlackTextMessage Nothing
+            channel     <- eventObj .: "channel"
+            return $ SlackTextMessage channel textMessage
+          _ -> return $ SlackOwnMessage
