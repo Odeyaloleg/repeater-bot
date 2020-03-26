@@ -1,4 +1,4 @@
-module Telegram.UsersData
+module UsersData
   ( UsersData
   ) where
 

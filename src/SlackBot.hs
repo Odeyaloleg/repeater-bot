@@ -9,7 +9,7 @@ import           Network.HTTP.Types ( status200, hContentType )
 import           Network.Wai.Handler.Warp ( runSettings, defaultSettings, setHost )
 import           Network.HTTP.Simple ( httpJSON, httpLBS, parseRequest_, Response, getResponseBody )
 import           Network.HTTP.Client.Internal ( method, requestBody, requestHeaders, RequestBody ( RequestBodyLBS ) )
-import           Data.Aeson ( decode, encode )
+import           Data.Aeson ( ToJSON, decode, encode )
 import           Data.Aeson.Types ( Object )
 import qualified Data.ByteString.Lazy as BSL ( fromStrict )
 import qualified Data.ByteString.Lazy.Char8 as BSL8 ( putStrLn )
@@ -19,36 +19,39 @@ import           Slack.Parsing
 import           Slack.ToJSON
 import           Slack.Settings
 
-execSlackBot :: SlackSettings -> IO ()
-execSlackBot s@(SlackSettings botToken serverIP serverPort) = do
-  runSettings (setHost (Host serverIP) defaultSettings) (application s)
+type SlackMethod = String
 
-application :: SlackSettings -> Application
-application (SlackSettings botToken serverIP serverPort) request respond = do
+execSlackBot :: SlackSettings -> IO ()
+execSlackBot (SlackSettings botToken (ServerSettings serverIP serverPort)) = do
+  runSettings (setHost (Host serverIP) defaultSettings) (application botToken)
+
+-- Use this to notify Slack about successful data receiving
+dataRecieved = responseLBS status200 [] ""
+
+application :: String -> Application
+application botToken request respond = do
   putStrLn $ "\nTriggered."
   reqBody <- strictRequestBody request
-  let parsedResponse = decode reqBody :: Maybe SlackResponse
-  case parsedResponse of
-    Nothing -> respond $ responseLBS
-                 status200
-                 [(hContentType, "text/html")]
-                 (BSL.fromStrict (BS8.pack "Couldn't handle data."))
-    Just slackResponse -> case slackResponse of
+  let parsedRequest = decode reqBody :: Maybe SlackMsg
+  case parsedRequest of
+    Nothing -> do
+      respond $ dataRecieved
+    Just slackMsg -> case slackMsg of
       SlackTextMessage textMessage -> do
         case textMessage of
           Just textMessage' -> do
             let answerRequest = parseRequest_ "https://slack.com/api/chat.postMessage"
-            answerResponse <- httpLBS $ answerRequest { method = "POST"
-                                            , requestHeaders = [(hContentType, "application/json"), ("Authorization", BS8.pack ("Bearer " ++ botToken))]
-                                            , requestBody = RequestBodyLBS $ encode $ SlackTextMessageJSON "" "CV2TXJJ59" textMessage' }
-            BSL8.putStrLn $ getResponseBody answerResponse
+            httpJSON $ answerRequest { method = "POST"
+                                     , requestHeaders = [(hContentType, "application/json"), ("Authorization", BS8.pack ("Bearer " ++ botToken))]
+                                     , requestBody = RequestBodyLBS $ encode $ SlackTextMessageJSON "" "CV2TXJJ59" textMessage' } :: IO (Response Object)
             putStrLn "Text message was sent."
-          Nothing -> return ()
-        respond $ responseLBS
-                  status200
-                  [(hContentType, "application/json")]
-                  (BSL.fromStrict (BS8.pack "Success."))
+          Nothing -> do
+            putStrLn "Bot's msg."
+        respond $ dataRecieved
       SlackChallenge challenge -> respond $ responseLBS
-                                            status200
-                                            [(hContentType, "application/json")]
-                                            (encode (SlackChallengeJSON challenge))
+                                              status200
+                                              [(hContentType, "application/json")]
+                                              (encode (SlackChallengeJSON challenge))
+
+sendAnswerNTimes :: (ToJSON a) => Int -> SlackMethod -> BotToken -> a -> IO (Response Object)
+sendAnswerNTimes = undefined

@@ -16,7 +16,7 @@ import           Control.Exception ( SomeException, try )
 import           Telegram.Parsing
 import           Telegram.ToJSON
 import           Telegram.Settings
-import           Telegram.UsersData
+import           UsersData
 
 type SucceedAnswersSize = Int
 type LastUpdateId       = Int

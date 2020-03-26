@@ -7,9 +7,9 @@ import Data.Aeson.Types ( Parser )
 
 -- Bad architecture. Will refactor after more deep understanding of Slack.
 
-data SlackResponse = SlackChallenge String | SlackTextMessage (Maybe String)
+data SlackMsg = SlackChallenge String | SlackTextMessage (Maybe String)
 
-instance FromJSON SlackResponse where
+instance FromJSON SlackMsg where
   parseJSON (Object response) = do
     responseType <- response .: "type" :: Parser String
     case responseType of

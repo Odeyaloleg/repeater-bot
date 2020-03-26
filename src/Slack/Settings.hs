@@ -12,15 +12,17 @@ type ServerIP   = String
 type ServerPort = Int
 type BotToken   = String
 
-data SlackSettings = SlackSettings BotToken ServerIP ServerPort
+data SlackSettings = SlackSettings BotToken ServerSettings
+
+data ServerSettings = ServerSettings ServerIP ServerPort
 
 setSlackSettings :: MS.Map BS8.ByteString BS8.ByteString -> Maybe SlackSettings
 setSlackSettings settingsMap = do
-  parsedToken       <- MS.lookup "SlackToken" settingsMap >>= (\token -> if BS8.null token then Nothing else Just (BS8.unpack token))
-  parsedServerIP    <- MS.lookup "ServerIP" settingsMap >>= (\ip -> if BS8.null ip then Nothing else Just (BS8.unpack ip))
+  parsedToken      <- MS.lookup "SlackToken" settingsMap >>= (\token -> if BS8.null token then Nothing else Just (BS8.unpack token))
+  parsedServerIP   <- MS.lookup "ServerIP" settingsMap >>= (\ip -> if BS8.null ip then Nothing else Just (BS8.unpack ip))
   parsedServerPort <- MS.lookup "ServerPort" settingsMap >>=
     (\port -> if BS8.null port then Nothing else
       case BS8.readInt port of
         Nothing -> Nothing
         Just (port', _) -> Just port')
-  return $ SlackSettings parsedToken parsedServerIP parsedServerPort
+  return $ SlackSettings parsedToken (ServerSettings parsedServerIP parsedServerPort)
