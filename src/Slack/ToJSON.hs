@@ -10,10 +10,9 @@ instance ToJSON SlackChallengeJSON where
   toJSON (SlackChallengeJSON challenge) =
     object [ "challenge" .= challenge ]
 
-data SlackTextMessageJSON = SlackTextMessageJSON String String String
+data SlackTextMessageJSON = SlackTextMessageJSON String String
 
 instance ToJSON SlackTextMessageJSON where
-  toJSON (SlackTextMessageJSON token channel textMessage) =
-    object [ "token"   .= token
-           , "channel" .= channel
-           , "text" .= textMessage ]
+  toJSON (SlackTextMessageJSON channel textMessage) =
+    object [ "channel" .= channel
+           , "text"    .= textMessage ]
