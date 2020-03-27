@@ -4,16 +4,17 @@ module SlackBot
   ( execSlackBot
   ) where
 
-import qualified Network.Wai as WAI hiding ( requestBody, requestHeaders )
+import qualified Network.Wai as WAI hiding ( requestBody )
 import           Network.HTTP.Types ( status200, hContentType )
 import           Network.Wai.Handler.Warp ( runSettings, defaultSettings, setHost )
 import           Network.HTTP.Simple ( httpJSON, httpLBS, parseRequest, Response, getResponseBody )
 import           Network.HTTP.Client.Internal ( method, requestBody, requestHeaders, RequestBody ( RequestBodyLBS ) )
 import           Data.Aeson ( ToJSON, decode, encode )
 import           Data.Aeson.Types ( Object )
-import qualified Data.ByteString.Lazy.Char8 as BSL8 ( putStrLn )
-import qualified Data.ByteString.Char8 as BS8 ( pack )
+import qualified Data.ByteString.Lazy.Char8 as BSL8 ( putStrLn, toStrict )
+import qualified Data.ByteString.Char8 as BS8 ( pack, breakSubstring, dropWhile, putStrLn )
 import           Data.Streaming.Network.Internal ( HostPreference ( Host ) )
+import           UrlEncodedFormParsing
 import           Slack.Parsing
 import           Slack.ToJSON
 import           Slack.Settings
@@ -32,13 +33,22 @@ dataRecieved = WAI.responseLBS status200 [] ""
 application :: String -> WAI.Application
 application botToken request respond = do
   putStrLn $ "\nTriggered."
+  let reqHeaders = WAI.requestHeaders request
   reqBody <- WAI.strictRequestBody request
-  BSL8.putStrLn reqBody
-  let parsedRequest = decode reqBody :: Maybe SlackMsg
-  case parsedRequest of
-    Nothing -> do
+  case lookup hContentType reqHeaders of
+    Just "application/json"                  -> do
+      let parsedRequest = decode reqBody :: Maybe SlackMsg
+      case parsedRequest of
+        Nothing -> do
+          putStrLn "Unknown JSON data."
+          respond $ dataRecieved
+        Just slackMsg -> handleSlackMsg slackMsg botToken respond
+    Just "application/x-www-form-urlencoded" -> do
+      let result = parseData reqBody
       respond $ dataRecieved
-    Just slackMsg -> handleSlackMsg slackMsg botToken respond
+    Nothing -> do
+      putStrLn "Unknown content."
+      respond $ dataRecieved
 
 handleSlackMsg :: SlackMsg -> String -> (WAI.Response -> IO WAI.ResponseReceived) -> IO WAI.ResponseReceived
 handleSlackMsg slackMsg botToken respond = case slackMsg of
