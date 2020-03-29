@@ -15,14 +15,13 @@ parseData d =
   in
   MS.fromList $ map inTuple dataLines
   where
-  inTuple line = helper ("",line) 
+  inTuple line = helper ("",line)
   helper (field,value) =
     let c = BSL8.head value
     in
     if c == '=' then (field,parseHexes $ BSL8.tail value) else helper (field `BSL8.append` BSL8.singleton c,BSL8.tail value)
   parseHexes v = BSL8.foldr (\c acc -> if c == '%' then BSL8.singleton (hexToChar $ BSL8.take 2 acc)`BSL8.append` BSL8.drop 2 acc else BSL8.singleton c `BSL8.append` acc) BSL8.empty v
 
--- Name WIP
 getVal :: BSL8.ByteString -> MS.Map BSL8.ByteString BSL8.ByteString -> Maybe BSL8.ByteString
 getVal field d = MS.lookup field d
 

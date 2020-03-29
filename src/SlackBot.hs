@@ -11,9 +11,10 @@ import           Network.HTTP.Simple ( httpJSON, httpLBS, parseRequest, Response
 import           Network.HTTP.Client.Internal ( method, requestBody, requestHeaders, RequestBody ( RequestBodyLBS ) )
 import           Data.Aeson ( ToJSON, decode, encode )
 import           Data.Aeson.Types ( Object )
-import qualified Data.ByteString.Lazy.Char8 as BSL8 ( putStrLn, toStrict )
+import qualified Data.ByteString.Lazy.Char8 as BSL8 ( ByteString, putStrLn, toStrict, unpack )
 import qualified Data.ByteString.Char8 as BS8 ( pack, breakSubstring, dropWhile, putStrLn )
 import           Data.Streaming.Network.Internal ( HostPreference ( Host ) )
+import           Data.Maybe ( fromJust )
 import           UrlEncodedFormParsing
 import           Slack.Parsing
 import           Slack.ToJSON
@@ -44,14 +45,14 @@ application botToken request respond = do
           respond $ dataRecieved
         Just slackMsg -> handleSlackMsg slackMsg botToken respond
     Just "application/x-www-form-urlencoded" -> do
-      let result = parseData reqBody
-      case getVal "command" result of
+      let requestData = parseData reqBody
+      case getVal "command" requestData of
         Nothing -> do
           putStrLn "Unknown urlencoded data."
           respond $ dataRecieved
-        Just s -> do
-          BSL8.putStrLn s
-          respond $ dataRecieved
+        Just command -> do
+          let channelId = fromJust $ getVal "channel_id" requestData
+          handleSlashCommand command channelId botToken respond
       respond $ dataRecieved
     Nothing -> do
       putStrLn "Unknown content."
@@ -70,6 +71,14 @@ handleSlackMsg slackMsg botToken respond = case slackMsg of
                                           status200
                                           [(hContentType, "application/json")]
                                           (encode (SlackChallengeJSON challenge))
+
+handleSlashCommand :: BSL8.ByteString -> BSL8.ByteString -> String -> (WAI.Response -> IO WAI.ResponseReceived) -> IO WAI.ResponseReceived
+handleSlashCommand command channelId botToken respond = do
+  case command of
+    "/about"  -> sendAnswerNTimes 1 "chat.postMessage" botToken (SlackTextMessageJSON (BSL8.unpack channelId) "Info")
+    "/repeat" -> sendAnswerNTimes 1 "chat.postMessage" botToken (SlackTextMessageJSON (BSL8.unpack channelId) "Repeating")
+    _         -> sendAnswerNTimes 1 "chat.postMessage" botToken (SlackTextMessageJSON (BSL8.unpack channelId) "There is no handler for this command.")
+  respond $ dataRecieved
 
 sendAnswerNTimes :: (ToJSON a) => Int -> SlackMethod -> BotToken -> a -> IO (Response Object)
 sendAnswerNTimes n slackMethod botToken slackMsg = do
