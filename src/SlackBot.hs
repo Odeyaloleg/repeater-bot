@@ -45,6 +45,13 @@ application botToken request respond = do
         Just slackMsg -> handleSlackMsg slackMsg botToken respond
     Just "application/x-www-form-urlencoded" -> do
       let result = parseData reqBody
+      case getVal "command" result of
+        Nothing -> do
+          putStrLn "Unknown urlencoded data."
+          respond $ dataRecieved
+        Just s -> do
+          BSL8.putStrLn s
+          respond $ dataRecieved
       respond $ dataRecieved
     Nothing -> do
       putStrLn "Unknown content."
