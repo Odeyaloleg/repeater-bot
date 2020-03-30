@@ -1,15 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module UrlEncodedFormParsing 
-  ( parseData, getVal
+  ( parseData, getVal, parseHexes
   ) where
 
 import qualified Data.ByteString.Lazy.Char8 as BSL8 ( ByteString, cons, foldr, head, tail
-                                                    , singleton, append, take, drop, empty )
+                                                    , singleton, append, take, drop, unpack )
 import qualified Data.Map.Strict as MS ( Map, fromList, lookup )
 import           Data.Char ( chr )
 
-parseData :: BSL8.ByteString -> MS.Map BSL8.ByteString BSL8.ByteString
+parseData :: BSL8.ByteString -> MS.Map BSL8.ByteString String
 parseData d =
   let dataLines = fst $ BSL8.foldr (\c (acc,dataLine) -> if c == '&' then (dataLine:acc,"") else (acc,c `BSL8.cons` dataLine)) ([],"") d
   in
@@ -19,10 +19,11 @@ parseData d =
   helper (field,value) =
     let c = BSL8.head value
     in
-    if c == '=' then (field,parseHexes $ BSL8.tail value) else helper (field `BSL8.append` BSL8.singleton c,BSL8.tail value)
-  parseHexes v = BSL8.foldr (\c acc -> if c == '%' then BSL8.singleton (hexToChar $ BSL8.take 2 acc)`BSL8.append` BSL8.drop 2 acc else BSL8.singleton c `BSL8.append` acc) BSL8.empty v
+    if c == '=' then (field,BSL8.unpack $ parseHexes $ BSL8.tail value) else helper (field `BSL8.append` BSL8.singleton c,BSL8.tail value)
 
-getVal :: BSL8.ByteString -> MS.Map BSL8.ByteString BSL8.ByteString -> Maybe BSL8.ByteString
+parseHexes v = BSL8.foldr (\c acc -> if c == '%' then BSL8.singleton (hexToChar $ BSL8.take 2 acc)`BSL8.append` BSL8.drop 2 acc else BSL8.singleton c `BSL8.append` acc) "" v
+
+getVal :: BSL8.ByteString -> MS.Map BSL8.ByteString String -> Maybe String
 getVal field d = MS.lookup field d
 
 hexToChar :: BSL8.ByteString -> Char

@@ -12,9 +12,13 @@ type ServerIP   = String
 type ServerPort = Int
 type BotToken   = String
 
-data SlackSettings = SlackSettings BotToken ServerSettings
+data SlackSettings = SlackSettings BotToken ServerSettings SlackTextAnswers
 
 data ServerSettings = ServerSettings ServerIP ServerPort
+
+data SlackTextAnswers = SlackTextAnswers
+                          { aboutText :: String
+                          , repeatText :: String }
 
 setSlackSettings :: MS.Map BS8.ByteString BS8.ByteString -> Maybe SlackSettings
 setSlackSettings settingsMap = do
@@ -25,4 +29,10 @@ setSlackSettings settingsMap = do
       case BS8.readInt port of
         Nothing -> Nothing
         Just (port', _) -> Just port')
-  return $ SlackSettings parsedToken (ServerSettings parsedServerIP parsedServerPort)
+  parsedAboutMsg <- MS.lookup "CommandHelp" settingsMap >>=
+    (\t -> if BS8.null t then Nothing else Just (BS8.unpack t))
+  parsedRepeatMsg <- MS.lookup "CommandRepeat" settingsMap >>=
+    (\t -> if BS8.null t then Nothing else Just (BS8.unpack t))
+  return $ SlackSettings parsedToken 
+                         (ServerSettings parsedServerIP parsedServerPort)
+                         (SlackTextAnswers parsedAboutMsg parsedRepeatMsg)

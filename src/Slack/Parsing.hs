@@ -5,8 +5,6 @@ module Slack.Parsing where
 import Data.Aeson
 import Data.Aeson.Types ( Parser )
 
--- Bad architecture. Will refactor after more deep understanding of Slack.
-
 type ChannelId = String
 
 data SlackMsg = SlackChallenge String
@@ -29,3 +27,15 @@ instance FromJSON SlackMsg where
             channel     <- eventObj .: "channel"
             return $ SlackTextMessage channel textMessage
           _ -> return $ SlackOwnMessage
+
+data SlackPayload = SlackPayloadButton String
+                  | UnknownPayload
+
+instance FromJSON SlackPayload where
+  parseJSON (Object response) = do
+    actions <- response .: "actions"
+    if null actions
+    then return UnknownPayload
+    else do
+      actionId <- head actions .: "action_id"
+      return $ SlackPayloadButton actionId
