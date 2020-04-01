@@ -6,9 +6,10 @@ import Data.Aeson
 import Data.Aeson.Types ( Parser )
 
 type ChannelId = String
+type UserId = String
 
 data SlackMsg = SlackChallenge String
-              | SlackTextMessage ChannelId String
+              | SlackTextMessage ChannelId UserId String
               | SlackOwnMessage
 
 instance FromJSON SlackMsg where
@@ -23,12 +24,13 @@ instance FromJSON SlackMsg where
         botId <- eventObj .:? "bot_id" :: Parser (Maybe String)
         case botId of
           Nothing -> do
-            textMessage <- eventObj .: "text"
             channel     <- eventObj .: "channel"
-            return $ SlackTextMessage channel textMessage
+            user        <- eventObj .: "user"
+            textMessage <- eventObj .: "text"
+            return $ SlackTextMessage channel user textMessage
           _ -> return $ SlackOwnMessage
 
-data SlackPayload = SlackPayloadButton String
+data SlackPayload = SlackPayloadButton UserId String
                   | UnknownPayload
 
 instance FromJSON SlackPayload where
@@ -37,5 +39,6 @@ instance FromJSON SlackPayload where
     if null actions
     then return UnknownPayload
     else do
+      userId <- response .: "user" >>= (\userObject -> userObject .: "id")
       actionId <- head actions .: "action_id"
-      return $ SlackPayloadButton actionId
+      return $ SlackPayloadButton userId actionId

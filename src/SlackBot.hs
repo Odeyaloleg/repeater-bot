@@ -15,10 +15,14 @@ import qualified Data.ByteString.Lazy.Char8 as BSL8 ( ByteString, putStrLn, toSt
 import qualified Data.ByteString.Char8 as BS8 ( pack, breakSubstring, dropWhile, putStrLn )
 import           Data.Streaming.Network.Internal ( HostPreference ( Host ) )
 import           Data.Maybe ( fromJust )
+import qualified Data.Map as M ( empty, lookup, member, insert )
+import           Control.Monad.State
+import           Control.Concurrent.MVar
 import           UrlEncodedFormParsing
 import           Slack.Parsing
 import           Slack.ToJSON
 import           Slack.Settings
+import           Slack.UsersData
 
 type SlackMethod = String
 type SlackCommand = String
@@ -30,13 +34,14 @@ botUri = "https://slack.com/api/"
 
 execSlackBot :: SlackSettings -> IO ()
 execSlackBot (SlackSettings botToken (ServerSettings serverIP serverPort) textAnswers) = do
-  runSettings (setHost (Host serverIP) defaultSettings) (application botToken textAnswers)
+  usersDataMV <- newMVar M.empty
+  runSettings (setHost (Host serverIP) defaultSettings) (application botToken textAnswers usersDataMV)
 
 -- Use this to notify Slack about successful data receiving
 dataRecieved = WAI.responseLBS status200 [] ""
 
-application :: String -> SlackTextAnswers -> WAI.Application
-application botToken textAnswers request respond = do
+application :: String -> SlackTextAnswers -> MVar UsersData -> WAI.Application
+application botToken textAnswers usersDataMV request respond = do
   putStrLn $ "\nTriggered."
   let reqHeaders = WAI.requestHeaders request
   reqBody <- WAI.strictRequestBody request
@@ -47,7 +52,8 @@ application botToken textAnswers request respond = do
         Nothing -> do
           putStrLn "Unknown JSON data."
           respond $ dataRecieved
-        Just slackMsg -> handleSlackMsg slackMsg botToken respond
+        Just slackMsg -> do
+          handleSlackMsg slackMsg botToken usersDataMV respond
     Just "application/x-www-form-urlencoded" -> do
       let requestData = parseData reqBody
       case getVal "command" requestData of
@@ -56,8 +62,13 @@ application botToken textAnswers request respond = do
           case parsedRequest of
             Nothing -> putStrLn "Unknown urlencoded data."
             Just payload -> case payload of
-              SlackPayloadButton actionId -> putStrLn actionId
-              UnknownPayload -> putStrLn "Unknown urlencoded data."
+              SlackPayloadButton userId actionId -> do
+                usersData <- takeMVar usersDataMV
+                putMVar usersDataMV (M.insert userId (False, read actionId) usersData)
+                putStrLn $ actionId
+              UnknownPayload -> do
+                putStrLn "Unknown urlencoded data."
+                return ()
           respond $ dataRecieved
         Just command -> do
           let responseURL = fromJust $ getVal "response_url" requestData
@@ -67,10 +78,16 @@ application botToken textAnswers request respond = do
       putStrLn "Unknown content."
       respond $ dataRecieved
 
-handleSlackMsg :: SlackMsg -> String -> (WAI.Response -> IO WAI.ResponseReceived) -> IO WAI.ResponseReceived
-handleSlackMsg slackMsg botToken respond = case slackMsg of
-  SlackTextMessage channelId textMessage -> do
-    sendAnswerNTimes 1 "chat.postMessage" botToken (SlackTextMessageJSON channelId textMessage)
+handleSlackMsg :: SlackMsg -> String -> MVar UsersData -> (WAI.Response -> IO WAI.ResponseReceived) -> IO WAI.ResponseReceived
+handleSlackMsg slackMsg botToken usersDataMV respond = case slackMsg of
+  SlackTextMessage channelId userId textMessage -> do
+    usersData <- takeMVar usersDataMV
+    let usersData' = case M.member userId usersData of
+          True  -> usersData
+          False -> M.insert userId (False, 1) usersData
+    let (isAskedForRepetitions, repetitionsNum) = fromJust $ M.lookup userId usersData'
+
+    sendAnswerNTimes repetitionsNum "chat.postMessage" botToken (SlackTextMessageJSON channelId textMessage)
     putStrLn "Text message was sent."
     respond $ dataRecieved
   SlackOwnMessage -> do
