@@ -2,7 +2,7 @@
 
 module Telegram.Parsing where
 
-import Data.Aeson
+import Data.Aeson ( FromJSON ( parseJSON ), Value ( Object ), (.:), (.:?) )
 import Data.Foldable ( asum )
 
 data TelegramUpdates = TelegramUpdates [TelegramMsgUpdate] | BadRequest String

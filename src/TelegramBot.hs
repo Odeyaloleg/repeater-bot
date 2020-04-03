@@ -4,11 +4,11 @@ module TelegramBot
   ( execTelegramBot
   ) where
 
-import           Network.HTTP.Simple
-import           Network.HTTP.Client.Internal
+import           Network.HTTP.Simple ( httpJSON, getResponseBody )
+import           Network.HTTP.Client.Internal ( Response, RequestBody ( RequestBodyLBS ), ResponseTimeout ( ResponseTimeoutNone )
+                                              , method, proxy, requestHeaders, requestBody, responseTimeout, parseRequest )
 import qualified Network.HTTP.Types as HTTP ( hContentType )
-import qualified Data.ByteString.Lazy as BSL ( ByteString )
-import           Data.Aeson
+import           Data.Aeson ( ToJSON, encode )
 import           Data.Aeson.Types ( Object )
 import           Data.Maybe ( fromJust )
 import qualified Data.Map as M ( empty, lookup, member, insert )

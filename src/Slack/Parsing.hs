@@ -2,7 +2,7 @@
 
 module Slack.Parsing where
 
-import Data.Aeson
+import Data.Aeson ( FromJSON ( parseJSON ), Value ( Object ), (.:), (.:?))
 import Data.Aeson.Types ( Parser )
 
 type ChannelId = String

@@ -2,7 +2,7 @@
 
 module Slack.ToJSON where
 
-import Data.Aeson
+import Data.Aeson ( ToJSON ( toJSON ), object, (.=) )
 
 data SlackChallengeJSON = SlackChallengeJSON String
 

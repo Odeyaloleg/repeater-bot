@@ -3,10 +3,8 @@
 module Slack.Settings
   where
 
-import qualified Data.Map.Strict as MS        ( Map, lookup )
+import qualified Data.Map.Strict as MS ( Map, lookup )
 import qualified Data.ByteString.Char8 as BS8 ( ByteString, null, unpack, readInt )
-import           Network.HTTP.Client          ( Proxy ( Proxy ) )
-import           Control.Monad                ( (>>=) )
 
 type ServerIP   = String
 type ServerPort = Int

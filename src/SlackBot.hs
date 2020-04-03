@@ -7,17 +7,16 @@ module SlackBot
 import qualified Network.Wai as WAI hiding ( requestBody )
 import           Network.HTTP.Types ( status200, hContentType )
 import           Network.Wai.Handler.Warp ( runSettings, defaultSettings, setHost )
-import           Network.HTTP.Simple ( httpJSON, httpNoBody, parseRequest, Response, getResponseBody )
+import           Network.HTTP.Simple ( httpJSON, httpNoBody, parseRequest, Response )
 import           Network.HTTP.Client.Internal ( method, requestBody, requestHeaders, RequestBody ( RequestBodyLBS ) )
 import           Data.Aeson ( ToJSON, decode, encode )
 import           Data.Aeson.Types ( Object )
-import qualified Data.ByteString.Lazy.Char8 as BSL8 ( ByteString, putStrLn, toStrict, unpack, drop )
-import qualified Data.ByteString.Char8 as BS8 ( pack, breakSubstring, dropWhile, putStrLn )
+import qualified Data.ByteString.Lazy.Char8 as BSL8 ( drop )
+import qualified Data.ByteString.Char8 as BS8 ( pack )
 import           Data.Streaming.Network.Internal ( HostPreference ( Host ) )
 import           Data.Maybe ( fromJust )
 import qualified Data.Map as M ( empty, lookup, member, insert )
-import           Control.Monad.State
-import           Control.Concurrent.MVar
+import           Control.Concurrent.MVar ( MVar, newMVar, takeMVar, putMVar )
 import           UrlEncodedFormParsing
 import           Slack.Parsing
 import           Slack.ToJSON
@@ -25,7 +24,7 @@ import           Slack.Settings
 import           Slack.UsersData
 
 type SlackMethod = String
-type SlackCommand = String
+type SlackCommand = String -- В тип
 type SlackCommandText = String
 
 data SlashCommandData = SlashCommandData SlackCommand SlackCommandText

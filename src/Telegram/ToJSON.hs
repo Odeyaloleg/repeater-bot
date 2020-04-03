@@ -2,7 +2,7 @@
 
 module Telegram.ToJSON where
 
-import Data.Aeson
+import Data.Aeson ( ToJSON ( toJSON ), object, (.=) )
 
 data TelegramMsgJSON = TelegramMsgJSON
                      { chatIdJSON  :: Int
