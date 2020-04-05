@@ -2,15 +2,17 @@
 
 module Slack.Parsing where
 
-import Data.Aeson ( FromJSON ( parseJSON ), Value ( Object ), (.:), (.:?))
-import Data.Aeson.Types ( Parser )
+import Data.Aeson (FromJSON(parseJSON), Value(Object), (.:), (.:?))
+import Data.Aeson.Types (Parser)
 
 type ChannelId = String
+
 type UserId = String
 
-data SlackMsg = SlackChallenge String
-              | SlackTextMessage ChannelId UserId String
-              | SlackOwnMessage
+data SlackMsg
+  = SlackChallenge String
+  | SlackTextMessage ChannelId UserId String
+  | SlackOwnMessage
 
 instance FromJSON SlackMsg where
   parseJSON (Object response) = do
@@ -24,21 +26,22 @@ instance FromJSON SlackMsg where
         botId <- eventObj .:? "bot_id" :: Parser (Maybe String)
         case botId of
           Nothing -> do
-            channel     <- eventObj .: "channel"
-            user        <- eventObj .: "user"
+            channel <- eventObj .: "channel"
+            user <- eventObj .: "user"
             textMessage <- eventObj .: "text"
             return $ SlackTextMessage channel user textMessage
           _ -> return $ SlackOwnMessage
 
-data SlackPayload = SlackPayloadButton UserId String
-                  | UnknownPayload
+data SlackPayload
+  = SlackPayloadButton UserId String
+  | UnknownPayload
 
 instance FromJSON SlackPayload where
   parseJSON (Object response) = do
     actions <- response .: "actions"
     if null actions
-    then return UnknownPayload
-    else do
-      userId <- response .: "user" >>= (\userObject -> userObject .: "id")
-      actionId <- head actions .: "action_id"
-      return $ SlackPayloadButton userId actionId
+      then return UnknownPayload
+      else do
+        userId <- response .: "user" >>= (\userObject -> userObject .: "id")
+        actionId <- head actions .: "action_id"
+        return $ SlackPayloadButton userId actionId
