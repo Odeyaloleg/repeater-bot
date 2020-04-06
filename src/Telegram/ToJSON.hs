@@ -1,33 +1,35 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Telegram.ToJSON where
+module Telegram.ToJSON
+  ( TelegramBotMsgJSON(..)
+  , TelegramKBButton(..)
+  , TelegramReplyMarkup(..)
+  ) where
 
 import Data.Aeson (ToJSON(toJSON), (.=), object)
 
-data TelegramMsgJSON =
-  TelegramMsgJSON
-    { chatIdJSON :: Int
-    , parseMode :: Maybe String
-    , msgTextJSON :: String
-    , replyMarkup :: Maybe TelegramReplyMarkup
-    }
+type ChatId = Int
 
-instance ToJSON TelegramMsgJSON where
-  toJSON (TelegramMsgJSON chatId (Just parseMode) msgText rMarkup) =
+type ParseMode = Maybe String
+
+type TextMessage = String
+
+type ReplyMarkup = Maybe TelegramReplyMarkup
+
+type StickerId = String
+
+data TelegramBotMsgJSON
+  = BotTextMsgJSON ChatId ParseMode TextMessage ReplyMarkup
+  | BotStickerMsgJSON ChatId StickerId
+
+instance ToJSON TelegramBotMsgJSON where
+  toJSON (BotTextMsgJSON chatId (Just parseMode) msgText rMarkup) =
     object ["chat_id" .= chatId, "parse_mode" .= parseMode, "text" .= msgText]
-  toJSON (TelegramMsgJSON chatId Nothing msgText (Just rMarkup)) =
+  toJSON (BotTextMsgJSON chatId Nothing msgText (Just rMarkup)) =
     object ["chat_id" .= chatId, "text" .= msgText, "reply_markup" .= rMarkup]
-  toJSON (TelegramMsgJSON chatId Nothing msgText Nothing) =
+  toJSON (BotTextMsgJSON chatId Nothing msgText Nothing) =
     object ["chat_id" .= chatId, "text" .= msgText]
-
-data TelegramStickerJSON =
-  TelegramStickerJSON
-    { stickerChatId :: Int
-    , stickerUniqueIdJSON :: String
-    }
-
-instance ToJSON TelegramStickerJSON where
-  toJSON (TelegramStickerJSON chatId stickerUniqueId) =
+  toJSON (BotStickerMsgJSON chatId stickerUniqueId) =
     object ["chat_id" .= chatId, "sticker" .= stickerUniqueId]
 
 data TelegramKBButton =
