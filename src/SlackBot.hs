@@ -7,7 +7,7 @@ module SlackBot
 import Control.Concurrent.MVar (MVar, newMVar, putMVar, takeMVar)
 import Data.Aeson (ToJSON, decode, encode)
 import Data.Aeson.Types (Object)
-import qualified Data.ByteString.Char8 as BS8 (pack)
+import qualified Data.ByteString.Char8 as BS8 (pack, unpack)
 import qualified Data.ByteString.Lazy.Char8 as BSL8 (drop)
 import qualified Data.Map as M (empty, insert, lookup, member)
 import Data.Maybe (fromJust)
@@ -21,7 +21,7 @@ import Network.HTTP.Client.Internal
 import Network.HTTP.Simple (Response, httpJSON, httpNoBody, parseRequest)
 import Network.HTTP.Types (hContentType, status200)
 import qualified Network.Wai as WAI hiding (requestBody)
-import Network.Wai.Handler.Warp (defaultSettings, runSettings, setHost)
+import Network.Wai.Handler.Warp (defaultSettings, runSettings, setHost, setPort)
 import Slack.Parsing
 import Slack.Settings
 import Slack.ToJSON
@@ -43,7 +43,7 @@ execSlackBot :: SlackSettings -> IO ()
 execSlackBot (SlackSettings botToken (ServerSettings serverIP serverPort) textAnswers) = do
   usersDataMV <- newMVar M.empty
   runSettings
-    (setHost (Host serverIP) defaultSettings)
+    (setPort serverPort $ setHost (Host serverIP) defaultSettings)
     (application botToken textAnswers usersDataMV)
 
 -- Use this to notify Slack about successful data receiving
@@ -52,36 +52,22 @@ dataRecieved = WAI.responseLBS status200 [] ""
 application :: String -> SlackTextAnswers -> MVar UsersData -> WAI.Application
 application botToken textAnswers usersDataMV request respond = do
   putStrLn $ "\nTriggered."
-  let reqHeaders = WAI.requestHeaders request
   reqBody <- WAI.strictRequestBody request
-  case lookup hContentType reqHeaders of
-    Just "application/json" -> do
+  let path = WAI.rawPathInfo request
+  case path of
+    "/" -> do
       let parsedRequest = decode reqBody :: Maybe SlackMsg
       case parsedRequest of
         Nothing -> do
-          putStrLn "Unknown JSON data."
+          putStrLn "Slack: Unknown data."
           respond $ dataRecieved
         Just slackMsg -> do
-          handleSlackMsg slackMsg botToken usersDataMV respond
-    Just "application/x-www-form-urlencoded" -> do
+          handleSlackMsg slackMsg botToken usersDataMV >>= respond
+    "/slash_command/" -> do
       let requestData = parseData reqBody
       case getVal "command" requestData of
         Nothing -> do
-          let parsedRequest =
-                decode $ BSL8.drop 8 $ parseHexes reqBody :: Maybe SlackPayload
-          case parsedRequest of
-            Nothing -> putStrLn "Unknown urlencoded data."
-            Just payload ->
-              case payload of
-                SlackPayloadButton userId actionId -> do
-                  usersData <- takeMVar usersDataMV
-                  putMVar
-                    usersDataMV
-                    (M.insert userId (False, read actionId) usersData)
-                  putStrLn $ actionId
-                UnknownPayload -> do
-                  putStrLn "Unknown urlencoded data."
-                  return ()
+          putStrLn $ "Slack: Unknown data."
           respond $ dataRecieved
         Just command -> do
           let responseURL = fromJust $ getVal "response_url" requestData
@@ -89,19 +75,31 @@ application botToken textAnswers usersDataMV request respond = do
             (SlashCommandData command responseURL)
             botToken
             textAnswers
-            respond
+          respond $ dataRecieved
+    "/interactivity/" -> do
+      let requestData = parseData reqBody
+      let parsedRequest =
+            decode $ parseHexes $ BSL8.drop 8 reqBody :: Maybe SlackPayload
+      case parsedRequest of
+        Nothing -> do
+          putStrLn "Slack: Unknown data."
+        Just payload -> do
+          case payload of
+            SlackPayloadButton userId actionId -> do
+              usersData <- takeMVar usersDataMV
+              putMVar
+                usersDataMV
+                (M.insert userId (False, read actionId) usersData)
+              putStrLn $ actionId
+            UnknownPayload -> do
+              putStrLn "Slack: Unknown data."
       respond $ dataRecieved
-    Nothing -> do
-      putStrLn "Unknown content."
+    _ -> do
+      putStrLn $ "Requested data from unknown path: " ++ BS8.unpack path
       respond $ dataRecieved
 
-handleSlackMsg ::
-     SlackMsg
-  -> String
-  -> MVar UsersData
-  -> (WAI.Response -> IO WAI.ResponseReceived)
-  -> IO WAI.ResponseReceived
-handleSlackMsg slackMsg botToken usersDataMV respond =
+handleSlackMsg :: SlackMsg -> String -> MVar UsersData -> IO WAI.Response
+handleSlackMsg slackMsg botToken usersDataMV =
   case slackMsg of
     SlackTextMessage channelId userId textMessage -> do
       usersData <- takeMVar usersDataMV
@@ -117,24 +115,20 @@ handleSlackMsg slackMsg botToken usersDataMV respond =
         botToken
         (SlackTextMessageJSON channelId textMessage)
       putStrLn "Text message was sent."
-      respond $ dataRecieved
+      return $ dataRecieved
     SlackOwnMessage -> do
       putStrLn "Own message."
-      respond $ dataRecieved
+      return $ dataRecieved
     SlackChallenge challenge ->
-      respond $
+      return $
       WAI.responseLBS
         status200
         [(hContentType, "application/json")]
         (encode (SlackChallengeJSON challenge))
 
 handleSlashCommand ::
-     SlashCommandData
-  -> String
-  -> SlackTextAnswers
-  -> (WAI.Response -> IO WAI.ResponseReceived)
-  -> IO WAI.ResponseReceived
-handleSlashCommand (SlashCommandData command responseURL) botToken textAnswers respond = do
+     SlashCommandData -> String -> SlackTextAnswers -> IO (Response ())
+handleSlashCommand (SlashCommandData command responseURL) botToken textAnswers = do
   case command of
     "/about" ->
       sendAnswerToCommand responseURL (TextAnswerJSON $ aboutText textAnswers)
@@ -146,7 +140,6 @@ handleSlashCommand (SlashCommandData command responseURL) botToken textAnswers r
       sendAnswerToCommand
         responseURL
         (TextAnswerJSON "There is no handler for this command.")
-  respond $ dataRecieved
 
 sendAnswerNTimes ::
      (ToJSON a) => Int -> SlackMethod -> BotToken -> a -> IO (Response Object)

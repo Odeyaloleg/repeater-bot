@@ -44,7 +44,6 @@ execTelegramBot s = runReaderT (runTelegramBot M.empty 0) s
 
 runTelegramBot :: UsersData -> LastUpdateId -> ReaderT TelegramSettings IO ()
 runTelegramBot d lastUpdId = do
-  s <- ask
   recievedUpdates <- pollTelegram lastUpdId
   case recievedUpdates of
     BadRequest description ->
