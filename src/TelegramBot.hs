@@ -97,7 +97,8 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
           handleUpdates
             rest
             (HandlerData
-               (( BotTextMsgJSON
+               (( TextMsgJSON $
+                  BotTextMsgJSON
                     chatId
                     Nothing
                     "Incorrent answer. Please choose one of the buttons or input digit from 1 to 5."
@@ -110,7 +111,8 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
           handleUpdates
             rest
             (HandlerData
-               (( BotTextMsgJSON
+               (( TextMsgJSON $
+                  BotTextMsgJSON
                     chatId
                     Nothing
                     ("I will repeat your messages " ++ show n ++ " times.")
@@ -123,7 +125,8 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
       handleUpdates
         rest
         (HandlerData
-           (( BotTextMsgJSON
+           (( TextMsgJSON $
+              BotTextMsgJSON
                 chatId
                 Nothing
                 "Incorrent answer. Please choose one of the buttons or input digit from 1 to 5."
@@ -138,8 +141,10 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
           let answerMsg =
                 case textMsg of
                   "/help" ->
+                    TextMsgJSON $
                     BotTextMsgJSON chatId Nothing (helpMessage s) Nothing
                   "/repeat" ->
+                    TextMsgJSON $
                     BotTextMsgJSON
                       chatId
                       Nothing
@@ -156,6 +161,7 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
                               ]
                             ]))
                   commandText' ->
+                    TextMsgJSON $
                     BotTextMsgJSON
                       chatId
                       Nothing
@@ -183,7 +189,7 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
       handleUpdates
         rest
         (HandlerData
-           ((BotStickerMsgJSON chatId fileId, 1) : botMsgs)
+           ((StickerMsgJSON $ BotStickerMsgJSON chatId fileId, 1) : botMsgs)
            updateId
            usersData)
     (UnknownMsg, _) -> do
@@ -203,8 +209,9 @@ composeTextMsgRequest ::
      ChatId -> String -> Maybe [TelegramEntity] -> TelegramBotMsgJSON
 composeTextMsgRequest chatId textMsg entities =
   case entities of
-    Nothing -> BotTextMsgJSON chatId Nothing textMsg Nothing
+    Nothing -> TextMsgJSON $ BotTextMsgJSON chatId Nothing textMsg Nothing
     Just entities' ->
+      TextMsgJSON $
       BotTextMsgJSON
         chatId
         (Just "Markdown")

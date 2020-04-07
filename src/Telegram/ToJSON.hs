@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Telegram.ToJSON
-  ( TelegramBotMsgJSON(..)
+  ( BotTextMsgJSON(..)
+  , BotStickerMsgJSON(..)
   , TelegramKBButton(..)
   , TelegramReplyMarkup(..)
   ) where
@@ -18,17 +19,21 @@ type ReplyMarkup = Maybe TelegramReplyMarkup
 
 type StickerId = String
 
-data TelegramBotMsgJSON
-  = BotTextMsgJSON ChatId ParseMode TextMessage ReplyMarkup
-  | BotStickerMsgJSON ChatId StickerId
+data BotTextMsgJSON =
+  BotTextMsgJSON ChatId ParseMode TextMessage ReplyMarkup
 
-instance ToJSON TelegramBotMsgJSON where
+instance ToJSON BotTextMsgJSON where
   toJSON (BotTextMsgJSON chatId (Just parseMode) msgText rMarkup) =
     object ["chat_id" .= chatId, "parse_mode" .= parseMode, "text" .= msgText]
   toJSON (BotTextMsgJSON chatId Nothing msgText (Just rMarkup)) =
     object ["chat_id" .= chatId, "text" .= msgText, "reply_markup" .= rMarkup]
   toJSON (BotTextMsgJSON chatId Nothing msgText Nothing) =
     object ["chat_id" .= chatId, "text" .= msgText]
+
+data BotStickerMsgJSON =
+  BotStickerMsgJSON ChatId StickerId
+
+instance ToJSON BotStickerMsgJSON where
   toJSON (BotStickerMsgJSON chatId stickerUniqueId) =
     object ["chat_id" .= chatId, "sticker" .= stickerUniqueId]
 

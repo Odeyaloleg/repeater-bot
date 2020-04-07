@@ -23,6 +23,10 @@ import UsersData
 
 type TelegramMethod = String
 
+data TelegramBotMsgJSON
+  = TextMsgJSON BotTextMsgJSON
+  | StickerMsgJSON BotStickerMsgJSON
+
 botUri = "https://api.telegram.org/bot"
 
 sendMessagesNTimes ::
@@ -30,16 +34,14 @@ sendMessagesNTimes ::
 sendMessagesNTimes [messageData] s = do
   let (botMsg, repetitionsNum) = messageData
   case botMsg of
-    BotTextMsgJSON _ _ _ _ ->
-      sendAnswerNTimes repetitionsNum "sendMessage" s botMsg
-    BotStickerMsgJSON _ _ ->
+    TextMsgJSON botMsg -> sendAnswerNTimes repetitionsNum "sendMessage" s botMsg
+    StickerMsgJSON botMsg ->
       sendAnswerNTimes repetitionsNum "sendSticker" s botMsg
 sendMessagesNTimes (messageData:rest) s = do
   let (botMsg, repetitionsNum) = messageData
   case botMsg of
-    BotTextMsgJSON _ _ _ _ ->
-      sendAnswerNTimes repetitionsNum "sendMessage" s botMsg
-    BotStickerMsgJSON _ _ ->
+    TextMsgJSON botMsg -> sendAnswerNTimes repetitionsNum "sendMessage" s botMsg
+    StickerMsgJSON botMsg ->
       sendAnswerNTimes repetitionsNum "sendSticker" s botMsg
   sendMessagesNTimes rest s
 
