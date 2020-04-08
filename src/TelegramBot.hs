@@ -6,23 +6,16 @@ module TelegramBot
 
 import Control.Exception (SomeException, try)
 import Control.Monad.Reader (ReaderT, ask, lift, runReaderT)
-import Data.Aeson (ToJSON, encode)
-import Data.Aeson.Types (Object)
 import qualified Data.Map as M (empty, insert, lookup, member)
 import Data.Maybe (fromJust)
 import Network.HTTP.Client.Internal
   ( RequestBody(RequestBodyLBS)
-  , Response
   , ResponseTimeout(ResponseTimeoutNone)
-  , method
   , parseRequest
   , proxy
-  , requestBody
-  , requestHeaders
   , responseTimeout
   )
 import Network.HTTP.Simple (getResponseBody, httpJSON)
-import qualified Network.HTTP.Types as HTTP (hContentType)
 import Telegram.Parsing
 import Telegram.SendingMessages
 import Telegram.Settings

@@ -13,7 +13,6 @@ import Network.HTTP.Client.Internal
   , proxy
   , requestBody
   , requestHeaders
-  , responseTimeout
   )
 import Network.HTTP.Simple (getResponseBody, httpJSON)
 import qualified Network.HTTP.Types as HTTP (hContentType)
@@ -31,19 +30,18 @@ botUri = "https://api.telegram.org/bot"
 
 sendMessagesNTimes ::
      [(TelegramBotMsgJSON, Int)] -> RequestSettings -> IO (Response Object)
-sendMessagesNTimes [messageData] s = do
-  let (botMsg, repetitionsNum) = messageData
-  case botMsg of
-    TextMsgJSON botMsg -> sendAnswerNTimes repetitionsNum "sendMessage" s botMsg
-    StickerMsgJSON botMsg ->
-      sendAnswerNTimes repetitionsNum "sendSticker" s botMsg
+sendMessagesNTimes [messageData] s = sender messageData s
 sendMessagesNTimes (messageData:rest) s = do
+  sender messageData s
+  sendMessagesNTimes rest s
+
+sender :: (TelegramBotMsgJSON, Int) -> RequestSettings -> IO (Response Object)
+sender messageData s = do
   let (botMsg, repetitionsNum) = messageData
   case botMsg of
     TextMsgJSON botMsg -> sendAnswerNTimes repetitionsNum "sendMessage" s botMsg
     StickerMsgJSON botMsg ->
       sendAnswerNTimes repetitionsNum "sendSticker" s botMsg
-  sendMessagesNTimes rest s
 
 sendAnswerNTimes ::
      (ToJSON a)
