@@ -37,19 +37,21 @@ runTelegramBot d lastUpdId = do
     BadRequest description ->
       lift $ putStrLn $ "TelegramBot error: " ++ description
     TelegramUpdates updates -> do
-      (HandlerData x y d) <- handleUpdates updates (HandlerData [] 0 d)
-      if length x == 0
+      (HandlerData botMsgs lastUpdateId d) <-
+        handleUpdates updates (HandlerData [] 0 d)
+      if length botMsgs == 0
         then lift $
              putStrLn $
              "Telegram: Didn't get any messages possible for handling."
         else do
           s <- ask
-          lift $ sendMessagesNTimes x (requestSettings s)
+          lift $ sendMessagesNTimes botMsgs (requestSettings s)
           lift $
             putStrLn $
             "Telegram: Handled " ++
-            show (length x) ++ "/" ++ show (length updates) ++ " messages."
-      runTelegramBot d y
+            show (length botMsgs) ++
+            "/" ++ show (length updates) ++ " messages."
+      runTelegramBot d lastUpdateId
 
 pollTelegram :: LastUpdateId -> ReaderT TelegramSettings IO TelegramUpdates
 pollTelegram lastUpdId = do
