@@ -10,4 +10,4 @@ type IsAskedForRepetitions = Bool
 
 type RepetitionsNum = Int
 
-type UsersData = Map UserId (IsAskedForRepetitions, RepetitionsNum)
+type UsersData a = Map a (IsAskedForRepetitions, RepetitionsNum)

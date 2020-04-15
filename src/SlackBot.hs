@@ -26,7 +26,7 @@ import Network.Wai.Handler.Warp (defaultSettings, runSettings, setHost, setPort)
 import Slack.Parsing
 import Slack.Settings
 import Slack.ToJSON
-import Slack.UsersData
+import UsersData
 import UrlEncodedFormParsing
 
 type SlackMethod = String
@@ -56,7 +56,7 @@ execSlackBot (SlackSettings botToken (ServerSettings serverIP serverPort) textAn
 -- Use this to notify Slack about successful data receiving
 dataRecieved = WAI.responseLBS status200 [] ""
 
-application :: SlackEnv -> MVar UsersData -> WAI.Application
+application :: SlackEnv -> MVar (UsersData String) -> WAI.Application
 application sEnv usersDataMV request respond = do
   putStrLn $ "\nTriggered."
   reqBody <- WAI.strictRequestBody request
@@ -104,7 +104,7 @@ application sEnv usersDataMV request respond = do
       putStrLn $ "Requested data from unknown path: " ++ BS8.unpack path
       respond $ dataRecieved
 
-handleSlackMsg :: SlackMsg -> MVar UsersData -> ReaderT SlackEnv IO WAI.Response
+handleSlackMsg :: SlackMsg -> MVar (UsersData String) -> ReaderT SlackEnv IO WAI.Response
 handleSlackMsg slackMsg usersDataMV =
   case slackMsg of
     SlackTextMessage channelId userId textMessage -> do

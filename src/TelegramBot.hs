@@ -25,12 +25,12 @@ import UsersData
 type LastUpdateId = Int
 
 data HandlerData =
-  HandlerData [(TelegramBotMsgJSON, Int)] LastUpdateId UsersData
+  HandlerData [(TelegramBotMsgJSON, Int)] LastUpdateId (UsersData Int)
 
 execTelegramBot :: TelegramSettings -> IO ()
 execTelegramBot s = runReaderT (runTelegramBot M.empty 0) s
 
-runTelegramBot :: UsersData -> LastUpdateId -> ReaderT TelegramSettings IO ()
+runTelegramBot :: UsersData Int -> LastUpdateId -> ReaderT TelegramSettings IO ()
 runTelegramBot d lastUpdId = do
   recievedUpdates <- pollTelegram lastUpdId
   case recievedUpdates of
