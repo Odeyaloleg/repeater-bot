@@ -2,7 +2,8 @@
 
 module Telegram.Parsing where
 
-import Data.Aeson (FromJSON(parseJSON), Value(Object), (.:), (.:?))
+import Data.Aeson (FromJSON(parseJSON), Object, Value(Object), (.:), (.:?))
+import Data.Aeson.Types (Parser)
 import Data.Foldable (asum)
 
 data TelegramUpdates
@@ -60,3 +61,15 @@ instance FromJSON TelegramEntity where
     TelegramEntity <$> entityObject .: "offset" <*> entityObject .: "length" <*>
     entityObject .: "type" <*>
     entityObject .:? "url"
+
+data AnswerStatus
+  = AnswerSuccess
+  | AnswerFail
+  deriving (Eq)
+
+instance FromJSON AnswerStatus where
+  parseJSON (Object answerObject) = do
+    isOk <- answerObject .: "ok"
+    case isOk of
+      False -> return AnswerFail
+      True -> return AnswerSuccess

@@ -16,6 +16,7 @@ import Network.HTTP.Client.Internal
   )
 import Network.HTTP.Simple (getResponseBody, httpJSON)
 import qualified Network.HTTP.Types as HTTP (hContentType)
+import Telegram.Parsing
 import Telegram.Settings
 import Telegram.ToJSON
 import UsersData
@@ -29,13 +30,17 @@ data TelegramBotMsgJSON
 botUri = "https://api.telegram.org/bot"
 
 sendMessagesNTimes ::
-     [(TelegramBotMsgJSON, Int)] -> RequestSettings -> IO (Response Object)
-sendMessagesNTimes [messageData] s = sender messageData s
-sendMessagesNTimes (messageData:rest) s = do
-  sender messageData s
-  sendMessagesNTimes rest s
+     [(TelegramBotMsgJSON, Int)] -> RequestSettings -> IO [AnswerStatus]
+sendMessagesNTimes msgs settings = helper msgs settings []
+  where
+    helper [messageData] s answersStatus = do
+      res <- sender messageData s
+      return $ res ++ answersStatus
+    helper (messageData:rest) s answersStatus = do
+      res <- sender messageData s
+      helper rest s (res ++ answersStatus)
 
-sender :: (TelegramBotMsgJSON, Int) -> RequestSettings -> IO (Response Object)
+sender :: (TelegramBotMsgJSON, Int) -> RequestSettings -> IO [AnswerStatus]
 sender messageData s = do
   let (botMsg, repetitionsNum) = messageData
   case botMsg of
@@ -49,7 +54,7 @@ sendAnswerNTimes ::
   -> TelegramMethod
   -> RequestSettings
   -> a
-  -> IO (Response Object)
+  -> IO [AnswerStatus]
 sendAnswerNTimes n telegramMethod s botMessage = do
   answer <- parseRequest $ botUri ++ botToken s ++ "/" ++ telegramMethod
   repeatAnswer
@@ -60,8 +65,13 @@ sendAnswerNTimes n telegramMethod s botMessage = do
       , requestHeaders = [(HTTP.hContentType, "application/json")]
       , requestBody = RequestBodyLBS $ encode $ botMessage
       }
+    []
   where
-    repeatAnswer 1 answer = httpJSON answer :: IO (Response Object)
-    repeatAnswer n answer = do
-      httpJSON answer :: IO (Response Object)
-      repeatAnswer (n - 1) answer
+    repeatAnswer 1 answer answersStatus = do
+      response <- httpJSON answer
+      let answerStatus = (getResponseBody response :: AnswerStatus)
+      return $ answerStatus : answersStatus
+    repeatAnswer n answer answersStatus = do
+      response <- httpJSON answer
+      let answerStatus = (getResponseBody response :: AnswerStatus)
+      repeatAnswer (n - 1) answer (answerStatus : answersStatus)

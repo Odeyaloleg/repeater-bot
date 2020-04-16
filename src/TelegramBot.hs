@@ -30,7 +30,8 @@ data HandlerData =
 execTelegramBot :: TelegramSettings -> IO ()
 execTelegramBot s = runReaderT (runTelegramBot M.empty 0) s
 
-runTelegramBot :: UsersData Int -> LastUpdateId -> ReaderT TelegramSettings IO ()
+runTelegramBot ::
+     UsersData Int -> LastUpdateId -> ReaderT TelegramSettings IO ()
 runTelegramBot d lastUpdId = do
   recievedUpdates <- pollTelegram lastUpdId
   case recievedUpdates of
@@ -45,12 +46,17 @@ runTelegramBot d lastUpdId = do
              "Telegram: Didn't get any messages possible for handling."
         else do
           s <- ask
-          lift $ sendMessagesNTimes botMsgs (requestSettings s)
+          succeedAnswers <-
+            lift $ sendMessagesNTimes botMsgs (requestSettings s)
           lift $
             putStrLn $
             "Telegram: Handled " ++
             show (length botMsgs) ++
-            "/" ++ show (length updates) ++ " messages."
+            "/" ++
+            show (length updates) ++
+            " messages. Sent " ++
+            show (length (filter (== AnswerSuccess) succeedAnswers)) ++
+            "/" ++ show (length succeedAnswers) ++ " messages."
       runTelegramBot d lastUpdateId
 
 pollTelegram :: LastUpdateId -> ReaderT TelegramSettings IO TelegramUpdates
