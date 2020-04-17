@@ -1,14 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Telegram.Settings
-  ( TelegramSettings
+  ( TelegramSettings(..)
   , RequestSettings(..)
-  , pollingTimeout
-  , repeatsNum
-  , helpMessage
-  , repeatMessage
   , setTelegramSettings
-  , requestSettings
   ) where
 
 import qualified Data.ByteString.Char8 as BS8

@@ -1,9 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Telegram.SendingMessages where
+module Telegram.SendingMessages
+  ( TelegramBotMsgJSON(..)
+  , sendMessagesNTimes
+  , botUri
+  ) where
 
 import Data.Aeson (ToJSON, encode)
-import Data.Aeson.Types (Object)
 import Network.HTTP.Client.Internal
   ( RequestBody(RequestBodyLBS)
   , Response
@@ -16,10 +19,9 @@ import Network.HTTP.Client.Internal
   )
 import Network.HTTP.Simple (getResponseBody, httpJSON)
 import qualified Network.HTTP.Types as HTTP (hContentType)
-import Telegram.Parsing
-import Telegram.Settings
-import Telegram.ToJSON
-import UsersData
+import Telegram.Parsing (AnswerStatus(..))
+import Telegram.Settings (RequestSettings(..))
+import Telegram.ToJSON (BotStickerMsgJSON(..), BotTextMsgJSON(..))
 
 type TelegramMethod = String
 

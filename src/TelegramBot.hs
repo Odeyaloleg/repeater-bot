@@ -17,10 +17,26 @@ import Network.HTTP.Client.Internal
   )
 import Network.HTTP.Simple (getResponseBody, httpJSON)
 import Telegram.Parsing
+  ( AnswerStatus(..)
+  , ChatId
+  , TelegramEntity(..)
+  , TelegramMsg(..)
+  , TelegramMsgUpdate(..)
+  , TelegramUpdates(..)
+  )
 import Telegram.SendingMessages
-import Telegram.Settings
+  ( TelegramBotMsgJSON(..)
+  , botUri
+  , sendMessagesNTimes
+  )
+import Telegram.Settings (TelegramSettings(..), botToken, proxyServer)
 import Telegram.ToJSON
-import UsersData
+  ( BotStickerMsgJSON(..)
+  , BotTextMsgJSON(..)
+  , TelegramKBButton(..)
+  , TelegramReplyMarkup(..)
+  )
+import UsersData (UsersData)
 
 type LastUpdateId = Int
 

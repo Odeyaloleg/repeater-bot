@@ -1,6 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Telegram.Parsing where
+module Telegram.Parsing
+  ( TelegramUpdates(..)
+  , TelegramMsgUpdate(..)
+  , TelegramEntity(..)
+  , TelegramMsg(..)
+  , ChatId
+  , AnswerStatus(..)
+  ) where
 
 import Data.Aeson (FromJSON(parseJSON), Object, Value(Object), (.:), (.:?))
 import Data.Aeson.Types (Parser)

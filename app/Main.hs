@@ -1,11 +1,11 @@
 module Main where
 
-import Config
+import Config (readConfig)
 import Control.Concurrent.Async (async)
-import Slack.Settings
-import SlackBot
-import Telegram.Settings
-import TelegramBot
+import Slack.Settings (setSlackSettings)
+import SlackBot (execSlackBot)
+import Telegram.Settings (setTelegramSettings)
+import TelegramBot (execTelegramBot)
 
 main :: IO ()
 main = do

@@ -1,6 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Slack.Settings where
+module Slack.Settings
+  ( SlackSettings(..)
+  , SlackTextAnswers(..)
+  , ServerSettings(..)
+  , BotToken
+  , setSlackSettings
+  ) where
 
 import qualified Data.ByteString.Char8 as BS8
   ( ByteString

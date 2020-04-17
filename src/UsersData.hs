@@ -10,4 +10,5 @@ type IsAskedForRepetitions = Bool
 
 type RepetitionsNum = Int
 
+-- Maybe newtype is better?
 type UsersData a = Map a (IsAskedForRepetitions, RepetitionsNum)

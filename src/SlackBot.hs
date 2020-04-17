@@ -23,11 +23,20 @@ import Network.HTTP.Simple (Response, httpJSON, httpNoBody, parseRequest)
 import Network.HTTP.Types (hContentType, status200)
 import qualified Network.Wai as WAI hiding (requestBody)
 import Network.Wai.Handler.Warp (defaultSettings, runSettings, setHost, setPort)
-import Slack.Parsing
+import Slack.Parsing (SlackMsg(..), SlackPayload(..))
 import Slack.Settings
+  ( BotToken
+  , ServerSettings(..)
+  , SlackSettings(..)
+  , SlackTextAnswers(..)
+  )
 import Slack.ToJSON
-import UsersData
-import UrlEncodedFormParsing
+  ( SlackChallengeJSON(..)
+  , SlackCommandAnswerJSON(..)
+  , SlackTextMessageJSON(..)
+  )
+import UrlEncodedFormParsing (getVal, parseData, parseHexes)
+import UsersData (UsersData)
 
 type SlackMethod = String
 
@@ -104,7 +113,8 @@ application sEnv usersDataMV request respond = do
       putStrLn $ "Requested data from unknown path: " ++ BS8.unpack path
       respond $ dataRecieved
 
-handleSlackMsg :: SlackMsg -> MVar (UsersData String) -> ReaderT SlackEnv IO WAI.Response
+handleSlackMsg ::
+     SlackMsg -> MVar (UsersData String) -> ReaderT SlackEnv IO WAI.Response
 handleSlackMsg slackMsg usersDataMV =
   case slackMsg of
     SlackTextMessage channelId userId textMessage -> do

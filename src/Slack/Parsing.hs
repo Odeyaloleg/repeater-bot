@@ -1,6 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Slack.Parsing where
+module Slack.Parsing
+  ( SlackMsg(..)
+  , SlackPayload(..)
+  ) where
 
 import Data.Aeson (FromJSON(parseJSON), Value(Object), (.:), (.:?))
 import Data.Aeson.Types (Parser)

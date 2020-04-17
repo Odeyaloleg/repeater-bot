@@ -1,6 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Slack.ToJSON where
+module Slack.ToJSON
+  ( SlackChallengeJSON(..)
+  , SlackTextMessageJSON(..)
+  , SlackCommandAnswerJSON(..)
+  ) where
 
 import Data.Aeson (ToJSON(toJSON), (.=), object)
 
