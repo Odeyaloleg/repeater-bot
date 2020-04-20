@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleInstances #-}
+
 module Config
   ( readConfig
   ) where
@@ -16,15 +18,21 @@ import qualified Data.ByteString.Char8 as BS8
 import Data.Map.Strict (Map, fromList)
 import System.IO (FilePath)
 
-readConfig :: FilePath -> IO (Either String (Map BS8.ByteString BS8.ByteString))
-readConfig configName = do
-  result <-
-    try $ BS8.readFile configName :: IO (Either SomeException BS8.ByteString)
-  case result of
-    Left e -> return $ Left $ show e
-    Right contents -> return $ Right $ parseConfig contents
+class Config a where
+  readConfig :: a -> IO (Either String (Map BS8.ByteString BS8.ByteString))
 
--- Seems like it's way more complicated than it can be
+instance Config FilePath where
+  readConfig configName = do
+    result <-
+      try $ BS8.readFile configName :: IO (Either SomeException BS8.ByteString)
+    case result of
+      Left e -> return $ Left $ show e
+      Right contents -> return $ Right $ parseConfig contents
+
+-- For module Tests.Config
+instance Config BS8.ByteString where
+  readConfig = return . Right . parseConfig
+
 parseConfig :: BS8.ByteString -> Map BS8.ByteString BS8.ByteString
 parseConfig contents =
   let dataLines =

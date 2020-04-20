@@ -32,6 +32,7 @@ dependencies:
 - warp
 - streaming-commons
 - mtl
+- QuickCheck
 
 library:
   source-dirs: src

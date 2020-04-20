@@ -1,2 +1,4 @@
+import qualified Tests.Config
+
 main :: IO ()
-main = putStrLn "Test suite not yet implemented"
+main = Tests.Config.runTests
