@@ -15,6 +15,7 @@ import qualified Data.ByteString.Char8 as BS8
   , readFile
   , tail
   )
+import Data.List (foldl')
 import Data.Map.Strict (Map, fromList)
 import System.IO (FilePath)
 
@@ -27,29 +28,43 @@ instance Config FilePath where
       try $ BS8.readFile configName :: IO (Either SomeException BS8.ByteString)
     case result of
       Left e -> return $ Left $ show e
-      Right contents -> return $ Right $ parseConfig contents
+      Right contents -> return $ parseConfig contents
 
 -- For module Tests.Config
 instance Config BS8.ByteString where
-  readConfig = return . Right . parseConfig
+  readConfig = return . parseConfig
 
-parseConfig :: BS8.ByteString -> Map BS8.ByteString BS8.ByteString
+parseConfig ::
+     BS8.ByteString -> Either String (Map BS8.ByteString BS8.ByteString)
 parseConfig contents =
-  let dataLines =
-        filter
-          (\line ->
-             if BS8.null line || BS8.head line == '#'
-               then False
-               else True)
-          (BS8.lines contents)
-      settingsLines = fmap (tuplesOn '=') $ dataLines
-   in fromList settingsLines
+  let configLines = BS8.lines contents
+      settingsList = parseConfigLines configLines
+   in either
+        (Left . ("parse error on line " ++) . show)
+        (Right . fromList)
+        settingsList
   where
-    tuplesOn c settingData = helper c (BS8.pack "", settingData)
+    parseConfigLines configLines = parseLoop (1, []) configLines
+    parseLoop (_, passedLines) [] = Right passedLines
+    parseLoop (lineNum, passedLines) (line:rest) =
+      if BS8.null line || BS8.head line == '#'
+        then parseLoop (lineNum + 1, passedLines) rest
+        else maybe
+               (Left lineNum)
+               (\setting -> parseLoop (lineNum + 1, setting : passedLines) rest)
+               (tupleOn '=' line)
+
+-- Nothing if first parameter didn't occur in the second parameter
+tupleOn :: Char -> BS8.ByteString -> Maybe (BS8.ByteString, BS8.ByteString)
+tupleOn c settingData = helper c (BS8.pack "", settingData)
+  where
     helper c (fieldName, rest)
-      | BS8.head rest == c = (fieldName, BS8.tail rest)
+      | not (BS8.null rest) && BS8.head rest == c =
+        Just (fieldName, BS8.tail rest)
       | otherwise =
-        helper
-          c
-          ( fieldName `BS8.append` BS8.pack ((BS8.head rest) : [])
-          , BS8.tail rest)
+        if BS8.null rest
+          then Nothing
+          else helper
+                 c
+                 ( fieldName `BS8.append` BS8.pack ((BS8.head rest) : [])
+                 , BS8.tail rest)
