@@ -35,7 +35,7 @@ import Slack.ToJSON
   , SlackCommandAnswerJSON(..)
   , SlackTextMessageJSON(..)
   )
-import UrlEncodedFormParsing (getVal, parseData, parseHexes)
+import UrlEncodedFormParsing (getVal, hexesToChars, parseUrlEncoded)
 import UsersData (UsersData)
 
 type SlackMethod = String
@@ -80,7 +80,7 @@ application sEnv usersDataMV request respond = do
         Just slackMsg -> do
           runReaderT (handleSlackMsg slackMsg usersDataMV) sEnv >>= respond
     "/slash_command/" -> do
-      let requestData = parseData reqBody
+      let requestData = parseUrlEncoded reqBody
       case getVal "command" requestData of
         Nothing -> do
           putStrLn $ "Slack: Unknown data."
@@ -92,9 +92,9 @@ application sEnv usersDataMV request respond = do
             sEnv
           respond $ dataRecieved
     "/interactivity/" -> do
-      let requestData = parseData reqBody
+      let requestData = parseUrlEncoded reqBody
       let parsedRequest =
-            decode $ parseHexes $ BSL8.drop 8 reqBody :: Maybe SlackPayload
+            decode $ hexesToChars $ BSL8.drop 8 reqBody :: Maybe SlackPayload
       case parsedRequest of
         Nothing -> do
           putStrLn "Slack: Unknown data."

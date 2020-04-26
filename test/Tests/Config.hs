@@ -5,9 +5,9 @@ module Tests.Config
   ) where
 
 import Config (readConfig)
-import Data.ByteString.Char8 (pack, unpack)
+import Data.ByteString.Char8 (pack)
 import qualified Data.Map.Strict as MS
-import Test.QuickCheck
+import Test.QuickCheck (Property, quickCheckAll)
 import Test.QuickCheck.Monadic (assert, monadicIO, run)
 
 prop_emptyConfigSafety :: Property
@@ -30,5 +30,5 @@ runTests :: IO ()
 runTests =
   runTests' >>= \passed ->
     if passed
-      then putStrLn "All tests passed."
-      else putStrLn "Some tests failed."
+      then putStrLn "All config tests passed."
+      else putStrLn "Some config tests failed."

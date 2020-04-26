@@ -16,6 +16,7 @@ data SlackMsg
   = SlackChallenge String
   | SlackTextMessage ChannelId UserId String
   | SlackOwnMessage
+  deriving (Eq)
 
 instance FromJSON SlackMsg where
   parseJSON (Object response) = do
