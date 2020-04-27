@@ -20,7 +20,7 @@ main = do
           putStrLn $
           "Couldn't parse Telegram settings properly. Telegram bot wasn't executed."
         Just telegramSettings' -> do
-          "Running Telegram bot."
+          putStrLn $ "Executing Telegram bot."
           async $ execTelegramBot telegramSettings'
           return ()
       let slackSettings = setSlackSettings botConfig'
@@ -29,5 +29,5 @@ main = do
           putStrLn $
           "Couldn't parse Slack settings properly. Slack bot wasn't executed."
         Just slackSettings' -> do
-          "Running Slack bot."
+          putStrLn $ "Executing Slack bot."
           execSlackBot slackSettings'

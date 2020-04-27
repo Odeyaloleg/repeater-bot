@@ -12,7 +12,7 @@ Configure bot in ~/bot.config.
 
 ### Structure:
 
-Module Main reads bot.config and runs bots of every messanger. If concrete messanger's bot has specified task or required own structure for this task, it has individual module in own directory. For examample, Telegram has own structure for sending messages, so code for this is in module Telegram.SendingMessages.
+Module Main reads bot.config and runs bots of every messanger. If concrete messanger's bot has specified task or required own structure for this task, it has individual module in it's own directory. For example, Telegram has own structure for sending messages, so code for this is in module Telegram.SendingMessages.
 
 Loop of every bot:
 1. Getting message from messanger.
