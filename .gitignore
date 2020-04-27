@@ -1,3 +1,6 @@
 .stack-work/
 repeater-bot.cabal
 *~
+bot.config
+.vscode/
+.history/
