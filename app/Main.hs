@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
 import Config (readConfig)
@@ -9,7 +11,8 @@ import TelegramBot (execTelegramBot)
 
 main :: IO ()
 main = do
-  let configName = "bot.config"
+  let configName = "bot.config" :: FilePath
+  putStrLn $ "Reading config \"" ++ configName ++ "\"."
   botConfig <- readConfig configName
   case botConfig of
     Left e -> putStrLn $ "Config error: " ++ e

@@ -12,7 +12,9 @@ import qualified Data.ByteString.Char8 as BS8
   , readInt
   , unpack
   )
+import Data.Char (toUpper)
 import qualified Data.Map.Strict as MS (Map, lookup)
+import Logging (LogLevel(..))
 import Network.HTTP.Client (Proxy(Proxy))
 
 data TelegramSettings =
@@ -22,6 +24,7 @@ data TelegramSettings =
     , repeatsNum :: Int
     , helpMessage :: String
     , repeatMessage :: String
+    , logLevel :: LogLevel
     }
   deriving (Eq)
 
@@ -89,6 +92,15 @@ instance SettingsTelegram BS8.ByteString where
          if BS8.null t
            then Nothing
            else Just (BS8.unpack t))
+    parsedLogLevel <-
+      MS.lookup "TelegramLogLevel" settingsMap >>=
+      (\logLevel ->
+         if BS8.null logLevel
+           then Nothing
+           else case map toUpper (BS8.unpack logLevel) of
+                  "DEBUG" -> Just LevelDEBUG
+                  "WARN" -> Just LevelWARN
+                  "RELEASE" -> Just LevelRELEASE)
     return $
       TelegramSettings
         (RequestSettings parsedToken parsedProxyServer)
@@ -96,3 +108,4 @@ instance SettingsTelegram BS8.ByteString where
         parsedRepititions
         parsedHelpMsg
         parsedRepeatMsg
+        parsedLogLevel

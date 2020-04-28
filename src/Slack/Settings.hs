@@ -14,7 +14,9 @@ import qualified Data.ByteString.Char8 as BS8
   , readInt
   , unpack
   )
+import Data.Char (toUpper)
 import qualified Data.Map.Strict as MS (Map, lookup)
+import Logging (LogLevel(..))
 
 type ServerIP = String
 
@@ -23,7 +25,7 @@ type ServerPort = Int
 type BotToken = String
 
 data SlackSettings =
-  SlackSettings BotToken ServerSettings SlackTextAnswers
+  SlackSettings BotToken ServerSettings SlackTextAnswers LogLevel
   deriving (Eq)
 
 data ServerSettings =
@@ -74,8 +76,18 @@ instance SettingsSlack BS8.ByteString where
          if BS8.null t
            then Nothing
            else Just (BS8.unpack t))
+    parsedLogLevel <-
+      MS.lookup "SlackLogLevel" settingsMap >>=
+      (\logLevel ->
+         if BS8.null logLevel
+           then Nothing
+           else case map toUpper (BS8.unpack logLevel) of
+                  "DEBUG" -> Just LevelDEBUG
+                  "WARN" -> Just LevelWARN
+                  "RELEASE" -> Just LevelRELEASE)
     return $
       SlackSettings
         parsedToken
         (ServerSettings parsedServerIP parsedServerPort)
         (SlackTextAnswers parsedAboutMsg parsedRepeatMsg)
+        parsedLogLevel

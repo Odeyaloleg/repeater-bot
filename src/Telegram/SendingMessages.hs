@@ -6,7 +6,11 @@ module Telegram.SendingMessages
   , botUri
   ) where
 
+import Control.Monad (when)
 import Data.Aeson (ToJSON, encode)
+import qualified Data.ByteString.Char8 as BS8
+import qualified Data.ByteString.Lazy as BSL
+import Logging (LogLevel(..), logTelegram)
 import Network.HTTP.Client.Internal
   ( RequestBody(RequestBodyLBS)
   , Response
@@ -32,23 +36,31 @@ data TelegramBotMsgJSON
 botUri = "https://api.telegram.org/bot"
 
 sendMessagesNTimes ::
-     [(TelegramBotMsgJSON, Int)] -> RequestSettings -> IO [AnswerStatus]
-sendMessagesNTimes msgs settings = helper msgs settings []
+     [(TelegramBotMsgJSON, Int)]
+  -> RequestSettings
+  -> LogLevel
+  -> IO [AnswerStatus]
+sendMessagesNTimes msgs settings logLvl = helper msgs settings []
   where
     helper [messageData] s answersStatus = do
-      res <- sender messageData s
+      res <- sender messageData s logLvl
       return $ res ++ answersStatus
     helper (messageData:rest) s answersStatus = do
-      res <- sender messageData s
+      res <- sender messageData s logLvl
       helper rest s (res ++ answersStatus)
 
-sender :: (TelegramBotMsgJSON, Int) -> RequestSettings -> IO [AnswerStatus]
-sender messageData s = do
+sender ::
+     (TelegramBotMsgJSON, Int)
+  -> RequestSettings
+  -> LogLevel
+  -> IO [AnswerStatus]
+sender messageData s logLvl = do
   let (botMsg, repetitionsNum) = messageData
   case botMsg of
-    TextMsgJSON botMsg -> sendAnswerNTimes repetitionsNum "sendMessage" s botMsg
+    TextMsgJSON botMsg ->
+      sendAnswerNTimes repetitionsNum "sendMessage" s botMsg logLvl
     StickerMsgJSON botMsg ->
-      sendAnswerNTimes repetitionsNum "sendSticker" s botMsg
+      sendAnswerNTimes repetitionsNum "sendSticker" s botMsg logLvl
 
 sendAnswerNTimes ::
      (ToJSON a)
@@ -56,9 +68,11 @@ sendAnswerNTimes ::
   -> TelegramMethod
   -> RequestSettings
   -> a
+  -> LogLevel
   -> IO [AnswerStatus]
-sendAnswerNTimes n telegramMethod s botMessage = do
+sendAnswerNTimes n telegramMethod s botMessage logLvl = do
   answer <- parseRequest $ botUri ++ botToken s ++ "/" ++ telegramMethod
+  when (logLvl == LevelDEBUG) (logTelegram $ "Request to Telegram: " `BSL.append` (BSL.fromStrict $ BS8.pack $ show answer))
   repeatAnswer
     n
     answer

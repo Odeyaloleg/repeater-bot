@@ -5,9 +5,14 @@ module TelegramBot
   ) where
 
 import Control.Exception (SomeException, try)
-import Control.Monad.Reader (ReaderT, ask, lift, runReaderT)
+import Control.Monad (when)
+import Control.Monad.Reader (ReaderT, ask, asks, lift, runReaderT)
+import Data.Aeson (decode)
+import qualified Data.ByteString.Char8 as BS8
+import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Map as M (empty, insert, lookup, member)
 import Data.Maybe (fromJust)
+import Logging (LogLevel(..), logTelegram)
 import Network.HTTP.Client.Internal
   ( RequestBody(RequestBodyLBS)
   , ResponseTimeout(ResponseTimeoutNone)
@@ -15,7 +20,7 @@ import Network.HTTP.Client.Internal
   , proxy
   , responseTimeout
   )
-import Network.HTTP.Simple (getResponseBody, httpJSON)
+import Network.HTTP.Simple (getResponseBody, httpLBS)
 import Telegram.Parsing
   ( AnswerStatus(..)
   , ChatId
@@ -63,7 +68,7 @@ runTelegramBot d lastUpdId = do
         else do
           s <- ask
           succeedAnswers <-
-            lift $ sendMessagesNTimes botMsgs (requestSettings s)
+            lift $ sendMessagesNTimes botMsgs (requestSettings s) (logLevel s)
           lift $
             putStrLn $
             "Telegram: Handled " ++
@@ -85,13 +90,34 @@ pollTelegram lastUpdId = do
     (botToken (requestSettings s)) ++
     "/getUpdates?timeout=" ++
     show (pollingTimeout s) ++ "&offset=" ++ show offset
+  lift $
+    when
+      (logLevel s == LevelDEBUG)
+      (logTelegram $
+       "Request to Telegram: " `BSL.append`
+       (BSL.fromStrict $ BS8.pack $ show request))
   response <-
-    httpJSON $
+    httpLBS $
     request
       { responseTimeout = ResponseTimeoutNone
       , proxy = proxyServer (requestSettings s)
       }
-  return $ (getResponseBody response :: TelegramUpdates)
+  let responseBody = getResponseBody response :: BSL.ByteString
+  case (decode responseBody :: Maybe TelegramUpdates) of
+    Nothing -> do
+      lift $ putStrLn "Couldn't parse updates."
+      lift $
+        when
+          (logLevel s < LevelRELEASE)
+          (logTelegram $
+           "Couldn't parse Telegram updates: " `BSL.append` responseBody)
+      return $ TelegramUpdates []
+    Just telegramUpdates -> do
+      lift $
+        when
+          (logLevel s == LevelDEBUG)
+          (logTelegram $ "Updates from Telegram: " `BSL.append` responseBody)
+      return telegramUpdates
 
 handleUpdates ::
      [TelegramMsgUpdate]
@@ -111,6 +137,10 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
       result <- lift $ readRepetitions textMsg
       case result of
         Nothing -> do
+          lift $
+            when
+              (logLevel s == LevelDEBUG)
+              (logTelegram $ "Incorrent answer on \"/repeat\".")
           handleUpdates
             rest
             (HandlerData
@@ -125,6 +155,10 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
                updateId
                usersData)
         Just n -> do
+          lift $
+            when
+              (logLevel s == LevelDEBUG)
+              (logTelegram $ "Answer on \"/repeat\".")
           handleUpdates
             rest
             (HandlerData
@@ -139,6 +173,10 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
                updateId
                (M.insert chatId (False, n) d))
     (_, True) -> do
+      lift $
+        when
+          (logLevel s == LevelDEBUG)
+          (logTelegram $ "Incorrent answer on \"/repeat\".")
       handleUpdates
         rest
         (HandlerData
@@ -155,6 +193,7 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
     (TextMsg textMsg entities, _) -> do
       if head textMsg == '/'
         then do
+          lift $ when (logLevel s == LevelDEBUG) (logTelegram $ "Text command.")
           let answerMsg =
                 case textMsg of
                   "/help" ->
@@ -195,6 +234,7 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
                    rest
                    (HandlerData ((answerMsg, 1) : botMsgs) updateId usersData)
         else do
+          lift $ when (logLevel s == LevelDEBUG) (logTelegram $ "Text message.")
           handleUpdates
             rest
             (HandlerData
@@ -203,6 +243,7 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
                updateId
                usersData)
     (StickerMsg fileId, _) -> do
+      lift $ when (logLevel s == LevelDEBUG) (logTelegram $ "Sticker message.")
       handleUpdates
         rest
         (HandlerData
@@ -210,7 +251,13 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
            updateId
            usersData)
     (UnknownMsg, _) -> do
-      lift $ putStrLn "Unknown Message"
+      lift $ putStrLn "Unknown message."
+      lift $
+        when
+          (logLevel s < LevelRELEASE)
+          (logTelegram $
+           "Unknown Telegram message. Update id: " `BSL.append`
+           (BSL.fromStrict $ BS8.pack $ show updateId))
       handleUpdates rest (HandlerData botMsgs updateId usersData)
   where
     readRepetitions t = do

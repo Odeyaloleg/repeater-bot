@@ -4,3 +4,4 @@ repeater-bot.cabal
 bot.config
 .vscode/
 .history/
+*.txt
