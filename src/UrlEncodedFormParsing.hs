@@ -7,48 +7,32 @@ module UrlEncodedFormParsing
   ) where
 
 import qualified Data.ByteString.Lazy.Char8 as BSL8
-  ( ByteString
-  , append
-  , cons
-  , drop
-  , foldr
-  , head
-  , null
-  , singleton
-  , tail
-  , take
-  , unpack
-  )
 import Data.Char (chr)
 import Data.Foldable (foldrM)
 import qualified Data.Map.Strict as MS (Map, fromList, lookup)
 import Data.Maybe (fromJust)
 
-class UrlEncodedParsing a where
-  parseUrlEncoded :: a -> MS.Map a String -- Don't remember why second parameter is non-polymorphic
-
-instance UrlEncodedParsing BSL8.ByteString where
-  parseUrlEncoded d =
-    let dataLines =
-          fst $
-          BSL8.foldr
-            (\c (acc, dataLine) ->
-               if c == '&'
-                 then if BSL8.null dataLine
-                        then (acc, "")
-                        else (dataLine : acc, "")
-                 else (acc, c `BSL8.cons` dataLine))
-            ([], "")
-            d
-     in MS.fromList $ map inTuple dataLines
-    where
-      inTuple line = helper ("", line)
-      helper (field, value) =
-        let c = BSL8.head value
-         in if c == '='
-              then (field, BSL8.unpack $ hexesToChars $ BSL8.tail value)
-              else helper
-                     (field `BSL8.append` BSL8.singleton c, BSL8.tail value)
+parseUrlEncoded :: BSL8.ByteString -> MS.Map BSL8.ByteString String
+parseUrlEncoded d =
+  let dataLines =
+        fst $
+        BSL8.foldr
+          (\c (acc, dataLine) ->
+             if c == '&'
+               then if BSL8.null dataLine
+                      then (acc, "")
+                      else (dataLine : acc, "")
+               else (acc, c `BSL8.cons` dataLine))
+          ([], "")
+          d
+   in MS.fromList $ map inTuple dataLines
+  where
+    inTuple line = helper ("", line)
+    helper (field, value) =
+      let c = BSL8.head value
+       in if c == '='
+            then (field, BSL8.unpack $ hexesToChars $ BSL8.tail value)
+            else helper (field `BSL8.append` BSL8.singleton c, BSL8.tail value)
 
 hexesToChars :: BSL8.ByteString -> BSL8.ByteString
 hexesToChars v =
