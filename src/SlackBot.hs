@@ -66,7 +66,9 @@ execSlackBot (SlackSettings botToken (ServerSettings serverIP serverPort) repeti
   usersDataMV <- newMVar M.empty
   runSettings
     (setPort serverPort $ setHost (Host serverIP) defaultSettings)
-    (application (SlackEnv botToken textAnswers repetitionsNum logLevel) usersDataMV)
+    (application
+       (SlackEnv botToken textAnswers repetitionsNum logLevel)
+       usersDataMV)
 
 -- Use this to notify Slack about successful data receiving
 dataRecieved = WAI.responseLBS status200 [] ""
@@ -75,9 +77,6 @@ application :: SlackEnv -> MVar (UsersData String) -> WAI.Application
 application sEnv usersDataMV request respond = do
   putStrLn $ "\nTriggered."
   reqBody <- WAI.strictRequestBody request
-  when
-    (logLevel sEnv == LevelDEBUG)
-    (logSlack ("Request from Slack: " `BSL.append` reqBody))
   let path = WAI.rawPathInfo request
   case path of
     "/" -> do
@@ -85,12 +84,6 @@ application sEnv usersDataMV request respond = do
       case parsedRequest of
         Nothing -> do
           putStrLn "Slack: Unknown data."
-          when
-            (logLevel sEnv == LevelDEBUG)
-            (logSlack "Couldn't parse request.")
-          when
-            (logLevel sEnv == LevelWARN)
-            (logSlack ("Couldn't parse request: " `BSL.append` reqBody))
           respond $ dataRecieved
         Just slackMsg -> do
           runReaderT (handleSlackMsg slackMsg usersDataMV) sEnv >>= respond
@@ -99,12 +92,6 @@ application sEnv usersDataMV request respond = do
       case getVal "command" requestData of
         Nothing -> do
           putStrLn $ "Slack: Unknown data."
-          when
-            (logLevel sEnv == LevelDEBUG)
-            (logSlack "Unknown data in request.")
-          when
-            (logLevel sEnv == LevelWARN)
-            (logSlack ("Unknown data in request: " `BSL.append` reqBody))
           respond $ dataRecieved
         Just command -> do
           let responseURL = fromJust $ getVal "response_url" requestData
@@ -119,36 +106,11 @@ application sEnv usersDataMV request respond = do
       case parsedRequest of
         Nothing -> do
           putStrLn "Slack: Unknown data."
-          when
-            (logLevel sEnv == LevelDEBUG)
-            (logSlack "Unknown data in request.")
-          when
-            (logLevel sEnv == LevelWARN)
-            (logSlack ("Unknown data in request: " `BSL.append` reqBody))
         Just payload -> do
-          case payload of
-            SlackPayloadButton userId actionId -> do
-              usersData <- takeMVar usersDataMV
-              putMVar
-                usersDataMV
-                (M.insert userId (False, read actionId) usersData)
-              putStrLn $ actionId
-            UnknownPayload -> do
-              putStrLn "Slack: Unknown data."
-              when
-                (logLevel sEnv == LevelDEBUG)
-                (logSlack "Unknown data in request.")
-              when
-                (logLevel sEnv == LevelWARN)
-                (logSlack ("Unknown data in request: " `BSL.append` reqBody))
+          handleInteractivity payload usersDataMV
       respond $ dataRecieved
     _ -> do
       putStrLn $ "Requested data from unknown path: " ++ BS8.unpack path
-      when
-        (logLevel sEnv < LevelRELEASE)
-        (logSlack
-           ("Requested data from unknown path: " `BSL.append`
-            BSL.fromStrict path))
       respond $ dataRecieved
 
 handleSlackMsg ::
@@ -175,10 +137,8 @@ handleSlackMsg slackMsg usersDataMV = do
       return $ dataRecieved
     SlackOwnMessage -> do
       lift $ putStrLn "Own message."
-      lift $ when (logLvl == LevelDEBUG) (logSlack "Own message delivered.")
       return $ dataRecieved
     SlackChallenge challenge -> do
-      lift $ when (logLvl == LevelDEBUG) (logSlack "Sending challenge.")
       return $
         WAI.responseLBS
           status200
@@ -190,19 +150,26 @@ handleSlashCommand (SlashCommandData command responseURL) = do
   logLvl <- asks logLevel
   case command of
     "/about" -> do
-      lift $ when (logLvl < LevelRELEASE) (logSlack "Sending answer on \"/about\" command.")
       msgText <- asks $ aboutText . textAnswers
       lift $ sendAnswerToCommand responseURL (TextAnswerJSON $ msgText)
     "/repeat" -> do
-      lift $ when (logLvl < LevelRELEASE) (logSlack "Sending answer on \"/repeat\" command.")
       msgText <- asks $ repeatText . textAnswers
       lift $ sendAnswerToCommand responseURL (ButtonsAnswerJSON $ msgText)
     unknownCommand -> do
-      lift $ when (logLvl == LevelDEBUG) (logSlack $ "There is no handler for command " `BSL.append` BSL8.pack unknownCommand)
       lift $
         sendAnswerToCommand
           responseURL
           (TextAnswerJSON "There is no handler for this command.")
+
+handleInteractivity :: SlackPayload -> MVar (UsersData String) -> IO ()
+handleInteractivity payload usersDataMV =
+  case payload of
+    SlackPayloadButton userId actionId -> do
+      usersData <- takeMVar usersDataMV
+      putMVar usersDataMV (M.insert userId (False, read actionId) usersData)
+      putStrLn $ actionId
+    UnknownPayload -> do
+      putStrLn "Slack: Unknown data."
 
 sendAnswerNTimes ::
      (ToJSON a)
@@ -214,7 +181,6 @@ sendAnswerNTimes n slackMethod slackMsg = do
   token <- asks botToken
   logLvl <- asks logLevel
   answer <- lift $ parseRequest $ botUri ++ slackMethod
-  lift $ when (logLvl == LevelDEBUG) (logSlack $ "Sending message: " `BSL.append` encode slackMsg)
   lift $
     repeatAnswer
       n
