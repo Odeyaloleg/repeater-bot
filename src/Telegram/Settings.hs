@@ -14,9 +14,10 @@ data TelegramSettings =
   TelegramSettings
     { requestSettings :: RequestSettings
     , pollingTimeout :: Int
-    , repeatsNum :: Int
+    , repetitionsNum :: Int
     , helpMessage :: String
     , repeatMessage :: String
+    , incorrectAnswer :: String
     , logLevel :: LogLevel
     }
   deriving (Eq)
@@ -38,6 +39,7 @@ instance HasSettings TelegramSettings where
     parsedRepititions <- getRepetitions settingsMap
     parsedHelpMsg <- getSettingString "CommandHelp" settingsMap
     parsedRepeatMsg <- getSettingString "CommandRepeat" settingsMap
+    parsedIncorrectAnswer <- getSettingString "IncorrectAnswer" settingsMap
     parsedLogLevel <- getLogLevel "TelegramLogLevel" settingsMap
     return $
       TelegramSettings
@@ -46,4 +48,5 @@ instance HasSettings TelegramSettings where
         parsedRepititions
         parsedHelpMsg
         parsedRepeatMsg
+        parsedIncorrectAnswer
         parsedLogLevel

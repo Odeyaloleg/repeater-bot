@@ -3,7 +3,6 @@
 module Telegram.SendingMessages
   ( TelegramBotMsgJSON(..)
   , sendMessagesNTimes
-  , botUri
   ) where
 
 import Control.Monad (when)
@@ -26,6 +25,7 @@ import qualified Network.HTTP.Types as HTTP (hContentType)
 import Telegram.Parsing (AnswerStatus(..))
 import Telegram.Settings (RequestSettings(..))
 import Telegram.ToJSON (BotStickerMsgJSON(..), BotTextMsgJSON(..))
+import Telegram.BotModel (botUri)
 
 type TelegramMethod = String
 
@@ -33,7 +33,7 @@ data TelegramBotMsgJSON
   = TextMsgJSON BotTextMsgJSON
   | StickerMsgJSON BotStickerMsgJSON
 
-botUri = "https://api.telegram.org/bot"
+
 
 sendMessagesNTimes ::
      [(TelegramBotMsgJSON, Int)]
