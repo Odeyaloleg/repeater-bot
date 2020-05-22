@@ -5,10 +5,11 @@ module Slack.Settings
   , SlackTextAnswers(..)
   , ServerSettings(..)
   , BotToken
+  , RepetitionsNum
   ) where
 
 import Logging (LogLevel)
-import Settings (HasSettings, setBotSettings, getSettingString, getSettingInt, getLogLevel)
+import Settings (HasSettings, setBotSettings, getSettingString, getSettingInt, getRepetitions, getLogLevel)
 
 type ServerIP = String
 
@@ -16,8 +17,10 @@ type ServerPort = Int
 
 type BotToken = String
 
+type RepetitionsNum = Int
+
 data SlackSettings =
-  SlackSettings BotToken ServerSettings SlackTextAnswers LogLevel
+  SlackSettings BotToken ServerSettings RepetitionsNum SlackTextAnswers LogLevel
   deriving (Eq)
 
 data ServerSettings =
@@ -36,6 +39,7 @@ instance HasSettings SlackSettings where
     parsedToken <- getSettingString "SlackToken" settingsMap
     parsedServerIP <- getSettingString "ServerIP" settingsMap
     parsedServerPort <- getSettingInt "ServerPort" settingsMap
+    parsedRepititions <- getRepetitions settingsMap
     parsedAboutMsg <- getSettingString "CommandHelp" settingsMap
     parsedRepeatMsg <- getSettingString "CommandRepeat" settingsMap
     parsedLogLevel <- getLogLevel "SlackLogLevel" settingsMap
@@ -43,5 +47,6 @@ instance HasSettings SlackSettings where
       SlackSettings
         parsedToken
         (ServerSettings parsedServerIP parsedServerPort)
+        parsedRepititions
         (SlackTextAnswers parsedAboutMsg parsedRepeatMsg)
         parsedLogLevel
