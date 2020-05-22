@@ -1,39 +1,15 @@
-{-# LANGUAGE FlexibleInstances #-}
-
 module Config
-  ( readConfig
+  ( HasConfig
+  , readConfig
+  , parseConfig
   , getVal
   ) where
 
-import Control.Exception (SomeException, try)
 import qualified Data.ByteString.Char8 as BS8
-  ( ByteString
-  , append
-  , head
-  , lines
-  , null
-  , pack
-  , readFile
-  , tail
-  )
-import Data.List (foldl')
 import qualified Data.Map.Strict as MS
-import System.IO (FilePath)
 
-class Config a where
+class HasConfig a where
   readConfig :: a -> IO (Either String (MS.Map BS8.ByteString BS8.ByteString))
-
-instance Config FilePath where
-  readConfig configName = do
-    result <-
-      try $ BS8.readFile configName :: IO (Either SomeException BS8.ByteString)
-    case result of
-      Left e -> return $ Left $ show e
-      Right contents -> return $ parseConfig contents
-
--- For module Tests.Config
-instance Config BS8.ByteString where
-  readConfig = return . parseConfig
 
 getVal :: Ord k => k -> MS.Map k a -> Maybe a
 getVal = MS.lookup

@@ -1,14 +1,17 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, FlexibleInstances #-}
 
 module Main where
 
-import Config (readConfig, getVal)
+import Config (HasConfig, parseConfig, readConfig, getVal)
 import Settings (HasSettings, setBotSettings)
 import Control.Concurrent.Async (async)
 import Slack.Settings (SlackSettings)
 import SlackBot (execSlackBot)
 import Telegram.Settings (TelegramSettings)
 import TelegramBot (execTelegramBot)
+import Control.Exception (SomeException, try)
+import System.IO (FilePath)
+import qualified Data.ByteString.Char8 as BS8
 
 main :: IO ()
 main = do
@@ -29,6 +32,14 @@ main = do
           runBot execSlackBot slackSettings
         Just _ -> putStrLn "Unknown messenger in config. Bot wasn't executed."
         Nothing -> putStrLn "Couldn't find field \"Messenger\" in config. Bot wasn't executed."
+
+instance HasConfig FilePath where
+  readConfig configName = do
+    result <-
+      try $ BS8.readFile configName :: IO (Either SomeException BS8.ByteString)
+    case result of
+      Left e -> return $ Left $ show e
+      Right content -> return $ parseConfig content
 
 runBot :: (HasSettings a) => (a -> IO ()) -> Maybe a -> IO ()
 runBot bot settings =
