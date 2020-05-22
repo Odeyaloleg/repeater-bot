@@ -5,7 +5,6 @@ module Slack.Settings
   , SlackTextAnswers(..)
   , ServerSettings(..)
   , BotToken
-  , setSlackSettings
   ) where
 
 import qualified Data.ByteString.Char8 as BS8
@@ -17,6 +16,7 @@ import qualified Data.ByteString.Char8 as BS8
 import Data.Char (toUpper)
 import qualified Data.Map.Strict as MS (Map, lookup)
 import Logging (LogLevel(..))
+import Settings (HasSettings, setBotSettings)
 
 type ServerIP = String
 
@@ -39,11 +39,8 @@ data SlackTextAnswers =
     }
   deriving (Eq)
 
-class SettingsSlack a where
-  setSlackSettings :: MS.Map a a -> Maybe SlackSettings
-
-instance SettingsSlack BS8.ByteString where
-  setSlackSettings settingsMap = do
+instance HasSettings SlackSettings where
+  setBotSettings settingsMap = do
     parsedToken <-
       MS.lookup "SlackToken" settingsMap >>=
       (\token ->

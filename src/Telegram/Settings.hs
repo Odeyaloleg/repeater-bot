@@ -3,7 +3,6 @@
 module Telegram.Settings
   ( TelegramSettings(..)
   , RequestSettings(..)
-  , setTelegramSettings
   ) where
 
 import qualified Data.ByteString.Char8 as BS8
@@ -13,9 +12,10 @@ import qualified Data.ByteString.Char8 as BS8
   , unpack
   )
 import Data.Char (toUpper)
-import qualified Data.Map.Strict as MS (Map, lookup)
+import qualified Data.Map.Strict as MS (lookup)
 import Logging (LogLevel(..))
 import Network.HTTP.Client (Proxy(Proxy))
+import Settings (HasSettings, setBotSettings)
 
 data TelegramSettings =
   TelegramSettings
@@ -35,11 +35,8 @@ data RequestSettings =
     }
   deriving (Eq)
 
-class SettingsTelegram a where
-  setTelegramSettings :: MS.Map a a -> Maybe TelegramSettings
-
-instance SettingsTelegram BS8.ByteString where
-  setTelegramSettings settingsMap = do
+instance HasSettings TelegramSettings where
+  setBotSettings settingsMap = do
     parsedToken <-
       MS.lookup "TelegramToken" settingsMap >>=
       (\token ->

@@ -2,35 +2,36 @@
 
 module Main where
 
-import Config (readConfig)
+import Config (readConfig, getVal)
+import Settings (HasSettings, setBotSettings)
 import Control.Concurrent.Async (async)
-import Slack.Settings (setSlackSettings)
+import Slack.Settings (SlackSettings)
 import SlackBot (execSlackBot)
-import Telegram.Settings (setTelegramSettings)
+import Telegram.Settings (TelegramSettings)
 import TelegramBot (execTelegramBot)
 
 main :: IO ()
 main = do
   let configName = "bot.config" :: FilePath
   putStrLn $ "Reading config \"" ++ configName ++ "\"."
-  botConfig <- readConfig configName
-  case botConfig of
+  config <- readConfig configName
+  case config of
     Left e -> putStrLn $ "Config error: " ++ e
-    Right botConfig' -> do
-      let telegramSettings = setTelegramSettings botConfig'
-      case telegramSettings of
-        Nothing ->
-          putStrLn $
-          "Couldn't parse Telegram settings properly. Telegram bot wasn't executed."
-        Just telegramSettings' -> do
-          putStrLn $ "Executing Telegram bot."
-          async $ execTelegramBot telegramSettings'
-          return ()
-      let slackSettings = setSlackSettings botConfig'
-      case slackSettings of
-        Nothing ->
-          putStrLn $
-          "Couldn't parse Slack settings properly. Slack bot wasn't executed."
-        Just slackSettings' -> do
-          putStrLn $ "Executing Slack bot."
-          execSlackBot slackSettings'
+    Right settings -> do
+      case getVal "Messenger" settings of
+        Just "Telegram" -> do
+          putStrLn "Starting Telegram Bot."
+          let telegramSettings = setBotSettings settings :: Maybe TelegramSettings
+          runBot execTelegramBot telegramSettings
+        Just "Slack" -> do
+          putStrLn "Starting Slack Bot."
+          let slackSettings = setBotSettings settings :: Maybe SlackSettings
+          runBot execSlackBot slackSettings
+        Just _ -> putStrLn "Unknown messenger in config. Bot wasn't executed."
+        Nothing -> putStrLn "Couldn't find field \"Messenger\" in config. Bot wasn't executed."
+
+runBot :: (HasSettings a) => (a -> IO ()) -> Maybe a -> IO ()
+runBot bot settings =
+  case settings of
+    Nothing -> putStrLn "Couldn't parse settings properly. Bot wasn't executed."
+    Just settings' -> bot settings'

@@ -59,8 +59,6 @@ data SlackEnv =
 
 botUri = "https://slack.com/api/"
 
-logLevelDebug = True
-
 execSlackBot :: SlackSettings -> IO ()
 execSlackBot (SlackSettings botToken (ServerSettings serverIP serverPort) textAnswers logLevel) = do
   usersDataMV <- newMVar M.empty
