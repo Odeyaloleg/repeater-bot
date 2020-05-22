@@ -10,6 +10,9 @@ import qualified Data.Map.Strict as MS
 import Test.QuickCheck (Property, quickCheckAll)
 import Test.QuickCheck.Monadic (assert, monadicIO, run)
 
+instance Config BS8.ByteString where
+  readConfig = return . parseConfig
+
 prop_emptyConfigSafety :: Property
 prop_emptyConfigSafety =
   monadicIO $ do

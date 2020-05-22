@@ -6,7 +6,6 @@ module Telegram.Settings
   ) where
 
 import qualified Data.ByteString.Char8 as BS8
-import qualified Data.Map.Strict as MS (lookup)
 import Logging (LogLevel)
 import Network.HTTP.Client (Proxy(Proxy))
 import Settings (HasSettings, setBotSettings, getSettingString, getSettingInt, getRepetitions, getLogLevel)
