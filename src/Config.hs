@@ -2,6 +2,7 @@
 
 module Config
   ( readConfig
+  , getVal
   ) where
 
 import Control.Exception (SomeException, try)
@@ -16,11 +17,11 @@ import qualified Data.ByteString.Char8 as BS8
   , tail
   )
 import Data.List (foldl')
-import Data.Map.Strict (Map, fromList)
+import qualified Data.Map.Strict as MS
 import System.IO (FilePath)
 
 class Config a where
-  readConfig :: a -> IO (Either String (Map BS8.ByteString BS8.ByteString))
+  readConfig :: a -> IO (Either String (MS.Map BS8.ByteString BS8.ByteString))
 
 instance Config FilePath where
   readConfig configName = do
@@ -34,14 +35,17 @@ instance Config FilePath where
 instance Config BS8.ByteString where
   readConfig = return . parseConfig
 
+getVal :: Ord k => k -> MS.Map k a -> Maybe a
+getVal = MS.lookup
+
 parseConfig ::
-     BS8.ByteString -> Either String (Map BS8.ByteString BS8.ByteString)
+     BS8.ByteString -> Either String (MS.Map BS8.ByteString BS8.ByteString)
 parseConfig contents =
   let configLines = BS8.lines contents
       settingsList = parseConfigLines configLines
    in either
         (Left . ("parse error on line " ++) . show)
-        (Right . fromList)
+        (Right . MS.fromList)
         settingsList
   where
     parseConfigLines configLines = parseLoop (1, []) configLines

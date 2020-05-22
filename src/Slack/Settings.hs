@@ -5,18 +5,10 @@ module Slack.Settings
   , SlackTextAnswers(..)
   , ServerSettings(..)
   , BotToken
-  , setSlackSettings
   ) where
 
-import qualified Data.ByteString.Char8 as BS8
-  ( ByteString
-  , null
-  , readInt
-  , unpack
-  )
-import Data.Char (toUpper)
-import qualified Data.Map.Strict as MS (Map, lookup)
-import Logging (LogLevel(..))
+import Logging (LogLevel)
+import Settings (HasSettings, setBotSettings, getSettingString, getSettingInt, getLogLevel)
 
 type ServerIP = String
 
@@ -39,52 +31,14 @@ data SlackTextAnswers =
     }
   deriving (Eq)
 
-class SettingsSlack a where
-  setSlackSettings :: MS.Map a a -> Maybe SlackSettings
-
-instance SettingsSlack BS8.ByteString where
-  setSlackSettings settingsMap = do
-    parsedToken <-
-      MS.lookup "SlackToken" settingsMap >>=
-      (\token ->
-         if BS8.null token
-           then Nothing
-           else Just (BS8.unpack token))
-    parsedServerIP <-
-      MS.lookup "ServerIP" settingsMap >>=
-      (\ip ->
-         if BS8.null ip
-           then Nothing
-           else Just (BS8.unpack ip))
-    parsedServerPort <-
-      MS.lookup "ServerPort" settingsMap >>=
-      (\port ->
-         if BS8.null port
-           then Nothing
-           else case BS8.readInt port of
-                  Nothing -> Nothing
-                  Just (port', _) -> Just port')
-    parsedAboutMsg <-
-      MS.lookup "CommandHelp" settingsMap >>=
-      (\t ->
-         if BS8.null t
-           then Nothing
-           else Just (BS8.unpack t))
-    parsedRepeatMsg <-
-      MS.lookup "CommandRepeat" settingsMap >>=
-      (\t ->
-         if BS8.null t
-           then Nothing
-           else Just (BS8.unpack t))
-    parsedLogLevel <-
-      MS.lookup "SlackLogLevel" settingsMap >>=
-      (\logLevel ->
-         if BS8.null logLevel
-           then Nothing
-           else case map toUpper (BS8.unpack logLevel) of
-                  "DEBUG" -> Just LevelDEBUG
-                  "WARN" -> Just LevelWARN
-                  "RELEASE" -> Just LevelRELEASE)
+instance HasSettings SlackSettings where
+  setBotSettings settingsMap = do
+    parsedToken <- getSettingString "SlackToken" settingsMap
+    parsedServerIP <- getSettingString "ServerIP" settingsMap
+    parsedServerPort <- getSettingInt "ServerPort" settingsMap
+    parsedAboutMsg <- getSettingString "CommandHelp" settingsMap
+    parsedRepeatMsg <- getSettingString "CommandRepeat" settingsMap
+    parsedLogLevel <- getLogLevel "SlackLogLevel" settingsMap
     return $
       SlackSettings
         parsedToken
