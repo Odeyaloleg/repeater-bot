@@ -29,6 +29,7 @@ import Network.Wai.Handler.Warp (defaultSettings, runSettings, setHost, setPort)
 import Slack.Parsing (SlackMsg(..), SlackPayload(..))
 import Slack.Settings
   ( BotToken
+  , RepetitionsNum
   , ServerSettings(..)
   , SlackSettings(..)
   , SlackTextAnswers(..)
@@ -54,17 +55,18 @@ data SlackEnv =
   SlackEnv
     { botToken :: BotToken
     , textAnswers :: SlackTextAnswers
+    , repetitionsNum :: RepetitionsNum
     , logLevel :: LogLevel
     }
 
 botUri = "https://slack.com/api/"
 
 execSlackBot :: SlackSettings -> IO ()
-execSlackBot (SlackSettings botToken (ServerSettings serverIP serverPort) textAnswers logLevel) = do
+execSlackBot (SlackSettings botToken (ServerSettings serverIP serverPort) repetitionsNum textAnswers logLevel) = do
   usersDataMV <- newMVar M.empty
   runSettings
     (setPort serverPort $ setHost (Host serverIP) defaultSettings)
-    (application (SlackEnv botToken textAnswers logLevel) usersDataMV)
+    (application (SlackEnv botToken textAnswers repetitionsNum logLevel) usersDataMV)
 
 -- Use this to notify Slack about successful data receiving
 dataRecieved = WAI.responseLBS status200 [] ""
@@ -153,6 +155,7 @@ handleSlackMsg ::
      SlackMsg -> MVar (UsersData String) -> ReaderT SlackEnv IO WAI.Response
 handleSlackMsg slackMsg usersDataMV = do
   logLvl <- asks logLevel
+  repetitions <- asks repetitionsNum
   case slackMsg of
     SlackTextMessage channelId userId textMessage -> do
       token <- asks botToken
@@ -160,7 +163,8 @@ handleSlackMsg slackMsg usersDataMV = do
       let usersData' =
             case M.member userId usersData of
               True -> usersData
-              False -> M.insert userId (False, 1) usersData
+              False -> M.insert userId (False, repetitions) usersData
+      lift $ putMVar usersDataMV usersData'
       let (isAskedForRepetitions, repetitionsNum) =
             fromJust $ M.lookup userId usersData'
       sendAnswerNTimes
