@@ -12,6 +12,7 @@ module Telegram.Parsing
 import Data.Aeson (FromJSON(parseJSON), Object, Value(Object), (.:), (.:?))
 import Data.Aeson.Types (Parser)
 import Data.Foldable (asum)
+import Telegram.BotModel (ChatId)
 
 data TelegramUpdates
   = TelegramUpdates [TelegramMsgUpdate]
@@ -25,8 +26,6 @@ instance FromJSON TelegramUpdates where
       True -> TelegramUpdates <$> updatesObject .: "result"
 
 type UpdateId = Int
-
-type ChatId = Int
 
 type Offset = Int
 
