@@ -9,7 +9,7 @@ import qualified Data.ByteString.Char8 as BS8
   , unpack
   )
 import qualified Data.Map.Strict as MS
-import Logging (LogLevel(..))
+import Logger (LogLevel(..))
 import Data.Char (toUpper)
 
 class HasSettings a where

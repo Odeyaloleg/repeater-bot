@@ -5,17 +5,15 @@ module SlackBot
   ) where
 
 import Control.Concurrent.MVar (MVar, newMVar, putMVar, takeMVar)
-import Control.Monad (when)
 import Control.Monad.Reader (ReaderT, asks, lift, runReaderT)
 import Data.Aeson (ToJSON, decode, encode)
 import Data.Aeson.Types (Object)
-import qualified Data.ByteString.Char8 as BS8 (pack, unpack)
+import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Lazy.Char8 as BSL8
-import qualified Data.Map as M (empty, insert, lookup, member)
+import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import Data.Streaming.Network.Internal (HostPreference(Host))
-import Logging (LogLevel(..), logSlack)
 import Network.HTTP.Client.Internal
   ( RequestBody(RequestBodyLBS)
   , method
@@ -33,6 +31,7 @@ import Slack.Settings
   , ServerSettings(..)
   , SlackSettings(..)
   , SlackTextAnswers(..)
+  , SlackEnv(..)
   )
 import Slack.ToJSON
   ( SlackChallengeJSON(..)
@@ -50,14 +49,6 @@ type SlackCommandText = String
 
 data SlashCommandData =
   SlashCommandData SlackCommand SlackCommandText
-
-data SlackEnv =
-  SlackEnv
-    { botToken :: BotToken
-    , textAnswers :: SlackTextAnswers
-    , repetitionsNum :: RepetitionsNum
-    , logLevel :: LogLevel
-    }
 
 botUri = "https://slack.com/api/"
 

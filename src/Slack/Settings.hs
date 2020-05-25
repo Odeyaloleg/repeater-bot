@@ -6,10 +6,28 @@ module Slack.Settings
   , ServerSettings(..)
   , BotToken
   , RepetitionsNum
+  , SlackEnv(..)
   ) where
 
-import Logging (LogLevel)
-import Settings (HasSettings, setBotSettings, getSettingString, getSettingInt, getRepetitions, getLogLevel)
+import Control.Monad (when)
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Reader (asks)
+import Logger
+  ( LogLevel(..)
+  , Logger
+  , logDebug
+  , logRelease
+  , logWarning
+  , writeLogIn
+  )
+import Settings
+  ( HasSettings
+  , getLogLevel
+  , getRepetitions
+  , getSettingInt
+  , getSettingString
+  , setBotSettings
+  )
 
 type ServerIP = String
 
@@ -50,3 +68,22 @@ instance HasSettings SlackSettings where
         parsedRepititions
         (SlackTextAnswers parsedAboutMsg parsedRepeatMsg)
         parsedLogLevel
+
+data SlackEnv =
+  SlackEnv
+    { botToken :: BotToken
+    , textAnswers :: SlackTextAnswers
+    , repetitionsNum :: RepetitionsNum
+    , logLevel :: LogLevel
+    }
+
+instance Logger SlackEnv where
+  logDebug log = do
+    logLvl <- asks logLevel
+    when (logLvl == LevelDEBUG) $ liftIO $ writeLogIn "Slack.txt" log
+  logWarning log = do
+    logLvl <- asks logLevel
+    when (logLvl <= LevelWARN) $ liftIO $ writeLogIn "Slack.txt" log
+  logRelease log = do
+    logLvl <- asks logLevel
+    when (logLvl <= LevelRELEASE) $ liftIO $ writeLogIn "Slack.txt" log

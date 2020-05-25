@@ -5,11 +5,8 @@ module Telegram.SendingMessages
   , sendMessagesNTimes
   ) where
 
-import Control.Monad (when)
+import Control.Monad.Reader (ReaderT, asks)
 import Data.Aeson (ToJSON, encode)
-import qualified Data.ByteString.Char8 as BS8
-import qualified Data.ByteString.Lazy as BSL
-import Logging (LogLevel(..), logTelegram)
 import Network.HTTP.Client.Internal
   ( RequestBody(RequestBodyLBS)
   , Response
@@ -22,10 +19,10 @@ import Network.HTTP.Client.Internal
   )
 import Network.HTTP.Simple (getResponseBody, httpJSON)
 import qualified Network.HTTP.Types as HTTP (hContentType)
-import Telegram.Parsing (AnswerStatus(..))
-import Telegram.Settings (RequestSettings(..))
-import Telegram.ToJSON (BotStickerMsgJSON(..), BotTextMsgJSON(..))
 import Telegram.BotModel (botUri)
+import Telegram.Parsing (AnswerStatus(..))
+import Telegram.Settings (RequestSettings(..), TelegramSettings(..))
+import Telegram.ToJSON (BotStickerMsgJSON(..), BotTextMsgJSON(..))
 
 type TelegramMethod = String
 
@@ -33,51 +30,40 @@ data TelegramBotMsgJSON
   = TextMsgJSON BotTextMsgJSON
   | StickerMsgJSON BotStickerMsgJSON
 
-
-
 sendMessagesNTimes ::
-     [(TelegramBotMsgJSON, Int)]
-  -> RequestSettings
-  -> LogLevel
-  -> IO [AnswerStatus]
-sendMessagesNTimes msgs settings logLvl = helper msgs settings []
+     [(TelegramBotMsgJSON, Int)] -> ReaderT TelegramSettings IO [AnswerStatus]
+sendMessagesNTimes msgs = helper msgs []
   where
-    helper [messageData] s answersStatus = do
-      res <- sender messageData s logLvl
+    helper [messageData] answersStatus = do
+      res <- sender messageData
       return $ res ++ answersStatus
-    helper (messageData:rest) s answersStatus = do
-      res <- sender messageData s logLvl
-      helper rest s (res ++ answersStatus)
+    helper (messageData:rest) answersStatus = do
+      res <- sender messageData
+      helper rest (res ++ answersStatus)
 
 sender ::
-     (TelegramBotMsgJSON, Int)
-  -> RequestSettings
-  -> LogLevel
-  -> IO [AnswerStatus]
-sender messageData s logLvl = do
+     (TelegramBotMsgJSON, Int) -> ReaderT TelegramSettings IO [AnswerStatus]
+sender messageData = do
   let (botMsg, repetitionsNum) = messageData
   case botMsg of
-    TextMsgJSON botMsg ->
-      sendAnswerNTimes repetitionsNum "sendMessage" s botMsg logLvl
+    TextMsgJSON botMsg -> sendAnswerNTimes repetitionsNum "sendMessage" botMsg
     StickerMsgJSON botMsg ->
-      sendAnswerNTimes repetitionsNum "sendSticker" s botMsg logLvl
+      sendAnswerNTimes repetitionsNum "sendSticker" botMsg
 
 sendAnswerNTimes ::
      (ToJSON a)
   => Int
   -> TelegramMethod
-  -> RequestSettings
   -> a
-  -> LogLevel
-  -> IO [AnswerStatus]
-sendAnswerNTimes n telegramMethod s botMessage logLvl = do
-  answer <- parseRequest $ botUri ++ botToken s ++ "/" ++ telegramMethod
-  when (logLvl == LevelDEBUG) (logTelegram $ "Request to Telegram: " `BSL.append` (BSL.fromStrict $ BS8.pack $ show answer))
+  -> ReaderT TelegramSettings IO [AnswerStatus]
+sendAnswerNTimes n telegramMethod botMessage = do
+  settings <- asks requestSettings
+  answer <- parseRequest $ botUri ++ botToken settings ++ "/" ++ telegramMethod
   repeatAnswer
     n
     answer
       { method = "POST"
-      , proxy = proxyServer s
+      , proxy = proxyServer settings
       , requestHeaders = [(HTTP.hContentType, "application/json")]
       , requestBody = RequestBodyLBS $ encode $ botMessage
       }
