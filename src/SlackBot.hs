@@ -6,33 +6,21 @@ module SlackBot
 
 import Control.Concurrent.MVar (MVar, newMVar, putMVar, takeMVar)
 import Control.Monad.Reader (ReaderT, asks, lift, runReaderT)
-import Data.Aeson (ToJSON, decode, encode)
-import Data.Aeson.Types (Object)
+import Data.Aeson (decode, encode)
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Lazy.Char8 as BSL8
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import Data.Streaming.Network.Internal (HostPreference(Host))
-import Logger (logDebug, logRelease, logWarning)
-import qualified Network.HTTP.Client.Internal as HTTP.Internal
-import Network.HTTP.Simple
-  ( Response
-  , getResponseBody
-  , getResponseStatusCode
-  , httpJSON
-  , httpLBS
-  , httpNoBody
-  , parseRequest
-  )
+import Logger (logDebug, logRelease)
 import Network.HTTP.Types (hContentType, status200)
 import qualified Network.Wai as WAI
 import Network.Wai.Handler.Warp (defaultSettings, runSettings, setHost, setPort)
 import Slack.Parsing (AnswerStatus(..), SlackMsg(..), SlackPayload(..))
+import Slack.SendingMessages (sendAnswerNTimes, sendAnswerToCommand)
 import Slack.Settings
-  ( BotToken
-  , RepetitionsNum
-  , ServerSettings(..)
+  ( ServerSettings(..)
   , SlackEnv(..)
   , SlackSettings(..)
   , SlackTextAnswers(..)
@@ -45,13 +33,9 @@ import Slack.ToJSON
 import UrlEncodedFormParsing (getVal, hexesToChars, parseUrlEncoded)
 import UsersData (UsersData)
 
-type SlackMethod = String
-
 type RequestPath = BS8.ByteString
 
 type RequestBody = BSL.ByteString
-
-botUri = "https://slack.com/api/"
 
 execSlackBot :: SlackSettings -> IO ()
 execSlackBot (SlackSettings botToken (ServerSettings serverIP serverPort) repetitionsNum textAnswers logLevel) = do
@@ -210,51 +194,3 @@ handleInteractivity reqBody usersDataMV = do
             "Unknown interactivity payload. Body: " `BSL.append` reqBody
           lift $ putStrLn "Slack: Unknown data."
   return dataRecieved
-
-sendAnswerNTimes ::
-     (ToJSON a) => Int -> SlackMethod -> a -> ReaderT SlackEnv IO [AnswerStatus]
-sendAnswerNTimes n slackMethod slackMsg = do
-  token <- asks botToken
-  answer <- lift $ parseRequest $ botUri ++ slackMethod
-  logDebug "Sending answer to Slack."
-  repeatAnswer
-    n
-    answer
-      { HTTP.Internal.method = "POST"
-      , HTTP.Internal.requestHeaders =
-          [ (hContentType, "application/json")
-          , ("Authorization", BS8.pack ("Bearer " ++ token))
-          ]
-      , HTTP.Internal.requestBody =
-          HTTP.Internal.RequestBodyLBS $ encode slackMsg
-      }
-    []
-  where
-    repeatAnswer 1 answer answersStatus = do
-      response <- httpJSON answer
-      let answerStatus = (getResponseBody response :: AnswerStatus)
-      return $ answerStatus : answersStatus
-    repeatAnswer n answer answersStatus = do
-      response <- httpJSON answer
-      let answerStatus = (getResponseBody response :: AnswerStatus)
-      repeatAnswer (n - 1) answer (answerStatus : answersStatus)
-
-sendAnswerToCommand :: (ToJSON a) => String -> a -> ReaderT SlackEnv IO ()
-sendAnswerToCommand responseUrl slackAnswerToCommand = do
-  slackAnswer <-
-    lift $
-    parseRequest responseUrl >>=
-    (\request ->
-       httpNoBody
-         request
-           { HTTP.Internal.method = "POST"
-           , HTTP.Internal.requestHeaders = [(hContentType, "application/json")]
-           , HTTP.Internal.requestBody =
-               HTTP.Internal.RequestBodyLBS $ encode slackAnswerToCommand
-           })
-  case getResponseStatusCode slackAnswer of
-    200 -> logDebug "Successfully sent answer onto command."
-    code ->
-      logRelease $
-      "Couldn't send answer onto command, status code: " `BSL.append`
-      BSL8.pack (show code)
