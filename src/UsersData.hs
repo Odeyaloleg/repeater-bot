@@ -10,5 +10,5 @@ type IsAskedForRepetitions = Bool
 
 type RepetitionsNum = Int
 
--- Maybe newtype is better?
+-- Using polymorphic parameter as an identificator for channels\private chats.
 type UsersData a = Map a (IsAskedForRepetitions, RepetitionsNum)

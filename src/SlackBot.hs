@@ -14,24 +14,20 @@ import qualified Data.ByteString.Lazy.Char8 as BSL8
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import Data.Streaming.Network.Internal (HostPreference(Host))
-import Network.HTTP.Client.Internal
-  ( RequestBody(RequestBodyLBS)
-  , method
-  , requestBody
-  , requestHeaders
-  )
+import Logger (logDebug, logRelease, logWarning)
+import qualified Network.HTTP.Client.Internal as HTTP.Internal
 import Network.HTTP.Simple (Response, httpJSON, httpNoBody, parseRequest)
 import Network.HTTP.Types (hContentType, status200)
-import qualified Network.Wai as WAI hiding (requestBody)
+import qualified Network.Wai as WAI
 import Network.Wai.Handler.Warp (defaultSettings, runSettings, setHost, setPort)
 import Slack.Parsing (SlackMsg(..), SlackPayload(..))
 import Slack.Settings
   ( BotToken
   , RepetitionsNum
   , ServerSettings(..)
+  , SlackEnv(..)
   , SlackSettings(..)
   , SlackTextAnswers(..)
-  , SlackEnv(..)
   )
 import Slack.ToJSON
   ( SlackChallengeJSON(..)
@@ -43,12 +39,9 @@ import UsersData (UsersData)
 
 type SlackMethod = String
 
-type SlackCommand = String
+type RequestPath = BS8.ByteString
 
-type SlackCommandText = String
-
-data SlashCommandData =
-  SlashCommandData SlackCommand SlackCommandText
+type RequestBody = BSL.ByteString
 
 botUri = "https://slack.com/api/"
 
@@ -66,101 +59,126 @@ dataRecieved = WAI.responseLBS status200 [] ""
 
 application :: SlackEnv -> MVar (UsersData String) -> WAI.Application
 application sEnv usersDataMV request respond = do
-  putStrLn $ "\nTriggered."
-  reqBody <- WAI.strictRequestBody request
   let path = WAI.rawPathInfo request
+  reqBody <- WAI.strictRequestBody request
+  runReaderT (handleRequest path reqBody usersDataMV) sEnv >>= respond
+
+handleRequest ::
+     RequestPath
+  -> RequestBody
+  -> MVar (UsersData String)
+  -> ReaderT SlackEnv IO WAI.Response
+handleRequest path reqBody usersDataMV =
   case path of
-    "/" -> do
-      let parsedRequest = decode reqBody :: Maybe SlackMsg
-      case parsedRequest of
-        Nothing -> do
-          putStrLn "Slack: Unknown data."
-          respond $ dataRecieved
-        Just slackMsg -> do
-          runReaderT (handleSlackMsg slackMsg usersDataMV) sEnv >>= respond
-    "/slash_command/" -> do
-      let requestData = parseUrlEncoded reqBody
-      case getVal "command" requestData of
-        Nothing -> do
-          putStrLn $ "Slack: Unknown data."
-          respond $ dataRecieved
-        Just command -> do
-          let responseURL = fromJust $ getVal "response_url" requestData
-          runReaderT
-            (handleSlashCommand (SlashCommandData command responseURL))
-            sEnv
-          respond $ dataRecieved
-    "/interactivity/" -> do
-      let requestData = parseUrlEncoded reqBody
-      let parsedRequest =
-            decode $ hexesToChars $ BSL8.drop 8 reqBody :: Maybe SlackPayload
-      case parsedRequest of
-        Nothing -> do
-          putStrLn "Slack: Unknown data."
-        Just payload -> do
-          handleInteractivity payload usersDataMV
-      respond $ dataRecieved
+    "/" -> handleTextMsg reqBody usersDataMV
+    "/slash_command/" -> handleSlashCommand reqBody
+    "/interactivity/" -> handleInteractivity reqBody usersDataMV
     _ -> do
-      putStrLn $ "Requested data from unknown path: " ++ BS8.unpack path
-      respond $ dataRecieved
+      logRelease $
+        BSL.concat
+          [ "Slack sent request to unknown path :"
+          , BSL.fromStrict path
+          , ". Body: "
+          , reqBody
+          ]
+      lift $ putStrLn $ "Requested data from unknown path: " ++ BS8.unpack path
+      return dataRecieved
 
-handleSlackMsg ::
-     SlackMsg -> MVar (UsersData String) -> ReaderT SlackEnv IO WAI.Response
-handleSlackMsg slackMsg usersDataMV = do
-  logLvl <- asks logLevel
-  repetitions <- asks repetitionsNum
-  case slackMsg of
-    SlackTextMessage channelId userId textMessage -> do
-      token <- asks botToken
-      usersData <- lift $ takeMVar usersDataMV
-      let usersData' =
-            case M.member userId usersData of
-              True -> usersData
-              False -> M.insert userId (False, repetitions) usersData
-      lift $ putMVar usersDataMV usersData'
-      let (isAskedForRepetitions, repetitionsNum) =
-            fromJust $ M.lookup userId usersData'
-      sendAnswerNTimes
-        repetitionsNum
-        "chat.postMessage"
-        (SlackTextMessageJSON channelId textMessage)
-      lift $ putStrLn "Text message was sent."
-      return $ dataRecieved
-    SlackOwnMessage -> do
-      lift $ putStrLn "Own message."
-      return $ dataRecieved
-    SlackChallenge challenge -> do
-      return $
-        WAI.responseLBS
-          status200
-          [(hContentType, "application/json")]
-          (encode (SlackChallengeJSON challenge))
+handleTextMsg ::
+     BSL.ByteString
+  -> MVar (UsersData String)
+  -> ReaderT SlackEnv IO WAI.Response
+handleTextMsg reqBody usersDataMV = do
+  let parsedRequest = decode reqBody :: Maybe SlackMsg
+  case parsedRequest of
+    Nothing -> do
+      logRelease $ "Couldn't parse text message from Slack. Body: " `BSL.append` reqBody
+      lift $ putStrLn "Slack: Unknown data."
+      return dataRecieved
+    Just slackMsg -> do
+      logDebug $ "Recieved text message from Slack: " `BSL.append` reqBody
+      defaultRepetitions <- asks repetitionsNum
+      case slackMsg of
+        SlackTextMessage channelId userId textMessage -> do
+          token <- asks botToken
+          usersData <- lift $ takeMVar usersDataMV
+          let usersData' =
+                case M.member userId usersData of
+                  True -> usersData
+                  False -> M.insert userId (False, defaultRepetitions) usersData
+          lift $ putMVar usersDataMV usersData'
+          let (isAskedForRepetitions, repetitions) =
+                fromJust $ M.lookup userId usersData'
+          logDebug "Sending message back."
+          sendAnswerNTimes
+            repetitions
+            "chat.postMessage"
+            (SlackTextMessageJSON channelId textMessage)
+          return dataRecieved
+        SlackOwnMessage -> do
+          logDebug "Recieved message is own. Actions are not required."
+          return dataRecieved
+        SlackChallenge challenge -> do
+          logRelease "Identification."
+          return $
+            WAI.responseLBS
+              status200
+              [(hContentType, "application/json")]
+              (encode (SlackChallengeJSON challenge))
 
-handleSlashCommand :: SlashCommandData -> ReaderT SlackEnv IO (Response ())
-handleSlashCommand (SlashCommandData command responseURL) = do
-  logLvl <- asks logLevel
-  case command of
-    "/about" -> do
-      msgText <- asks $ aboutText . textAnswers
-      lift $ sendAnswerToCommand responseURL (TextAnswerJSON $ msgText)
-    "/repeat" -> do
-      msgText <- asks $ repeatText . textAnswers
-      lift $ sendAnswerToCommand responseURL (ButtonsAnswerJSON $ msgText)
-    unknownCommand -> do
-      lift $
-        sendAnswerToCommand
-          responseURL
-          (TextAnswerJSON "There is no handler for this command.")
+handleSlashCommand :: BSL.ByteString -> ReaderT SlackEnv IO WAI.Response
+handleSlashCommand reqBody = do
+  let requestData = parseUrlEncoded reqBody
+  case getVal "command" requestData of
+    Nothing -> do
+      logRelease $ "Couldn't parse slack command. Body: " `BSL.append` reqBody
+      lift $ putStrLn "Slack: Unknown data."
+      return dataRecieved
+    Just command -> do
+      let responseURL = fromJust $ getVal "response_url" requestData
+      case command of
+        "/about" -> do
+          logDebug "Sending answer onto \"/about\" command."
+          msgText <- asks $ aboutText . textAnswers
+          lift $ sendAnswerToCommand responseURL (TextAnswerJSON $ msgText)
+        "/repeat" -> do
+          logDebug "Sending answer onto \"/repeat\" command."
+          msgText <- asks $ repeatText . textAnswers
+          lift $ sendAnswerToCommand responseURL (ButtonsAnswerJSON $ msgText)
+        unknownCommand -> do
+          logRelease $ "Recieved slash command without handler: " `BSL.append` BSL8.pack command
+          lift $
+            sendAnswerToCommand
+              responseURL
+              (TextAnswerJSON "There is no handler for this command.")
+      return dataRecieved
 
-handleInteractivity :: SlackPayload -> MVar (UsersData String) -> IO ()
-handleInteractivity payload usersDataMV =
-  case payload of
-    SlackPayloadButton userId actionId -> do
-      usersData <- takeMVar usersDataMV
-      putMVar usersDataMV (M.insert userId (False, read actionId) usersData)
-      putStrLn $ actionId
-    UnknownPayload -> do
-      putStrLn "Slack: Unknown data."
+handleInteractivity ::
+     BSL.ByteString
+  -> MVar (UsersData String)
+  -> ReaderT SlackEnv IO WAI.Response
+handleInteractivity reqBody usersDataMV = do
+  let requestData = parseUrlEncoded reqBody
+  -- Drop first 8 letters, because of format "Payload-<data>"
+  let parsedRequest =
+        decode $ hexesToChars $ BSL8.drop 8 reqBody :: Maybe SlackPayload
+  case parsedRequest of
+    Nothing -> do
+      logRelease $ "Couldn't parse interactivity data. Body: " `BSL.append` reqBody
+      lift $ putStrLn "Slack: Unknown data."
+    Just payload -> do
+      case payload of
+        SlackPayloadButton userId actionId -> do
+          logDebug $ "Unknown interactivity payload. Body: " `BSL.append` reqBody
+          usersData <- lift $ takeMVar usersDataMV
+          lift $
+            putMVar
+              usersDataMV
+              (M.insert userId (False, read actionId) usersData)
+        UnknownPayload -> do
+          logRelease $ "Unknown interactivity payload. Body: " `BSL.append` reqBody
+          lift $ putStrLn "Slack: Unknown data."
+  return dataRecieved
 
 sendAnswerNTimes ::
      (ToJSON a)
@@ -170,18 +188,18 @@ sendAnswerNTimes ::
   -> ReaderT SlackEnv IO (Response Object)
 sendAnswerNTimes n slackMethod slackMsg = do
   token <- asks botToken
-  logLvl <- asks logLevel
   answer <- lift $ parseRequest $ botUri ++ slackMethod
   lift $
     repeatAnswer
       n
       answer
-        { method = "POST"
-        , requestHeaders =
+        { HTTP.Internal.method = "POST"
+        , HTTP.Internal.requestHeaders =
             [ (hContentType, "application/json")
             , ("Authorization", BS8.pack ("Bearer " ++ token))
             ]
-        , requestBody = RequestBodyLBS $ encode slackMsg
+        , HTTP.Internal.requestBody =
+            HTTP.Internal.RequestBodyLBS $ encode slackMsg
         }
   where
     repeatAnswer 1 answer = httpJSON answer :: IO (Response Object)
@@ -195,7 +213,8 @@ sendAnswerToCommand responseUrl slackAnswerToCommand = do
     (\request ->
        httpNoBody
          request
-           { method = "POST"
-           , requestHeaders = [(hContentType, "application/json")]
-           , requestBody = RequestBodyLBS $ encode slackAnswerToCommand
+           { HTTP.Internal.method = "POST"
+           , HTTP.Internal.requestHeaders = [(hContentType, "application/json")]
+           , HTTP.Internal.requestBody =
+               HTTP.Internal.RequestBodyLBS $ encode slackAnswerToCommand
            })
