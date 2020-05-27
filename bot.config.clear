@@ -1,0 +1,36 @@
+##### Functional settings
+# In which messenger bot will be running. Available: Telegram, Slack.
+Messenger=
+
+# Initial repetitions number
+RepetitionsNumber=1
+
+# Answers
+CommandHelp=Hello! I am Repeater. I will repeat your messages. Type "/repeat" to set number of repetitions.
+CommandRepeat=Choose how many times I should repeat your message.
+IncorrectAnswer=Incorrent answer. Please choose one of the buttons or input digit from 1 to 5.
+
+
+##### Telegram connection settings
+# Timeout for long polling in seconds
+PollingTimeout=60
+
+# Leave this empty if you don't want to use proxy
+ProxyIP=
+ProxyPort=
+
+# This will be added in requests after "https://api.telegram.org/bot"
+TelegramToken=
+
+# Logs will be written in "Telegram.txt". Level can be DEBUG, WARN or RELEASE.
+TelegramLogLevel=DEBUG
+
+##### Slack connection settings
+ServerIP=127.0.0.1
+ServerPort=3000
+
+# OAuth access token
+SlackToken=
+
+# Logs will be written in "Slack.txt". Level can be DEBUG, WARN or RELEASE.
+SlackLogLevel=DEBUG
