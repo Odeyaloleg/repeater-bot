@@ -1,8 +1,12 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Telegram.HandleUpdates where
 
 import Control.Monad.Reader (ReaderT, ask, lift)
+import qualified Data.ByteString.Lazy.Char8 as BS8
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
+import Logger (logDebug, logWarning)
 import Telegram.BotModel (ChatId, LastUpdateId)
 import Telegram.Parsing
   ( TelegramEntity(..)
@@ -47,6 +51,12 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
       let maybeRepetitions = readRepetitions textMsg
       case maybeRepetitions of
         Nothing -> do
+          logDebug $
+            BS8.concat
+              [ "Update id: "
+              , BS8.pack $ show updateId
+              , ". Incorrect answer on \"/repeat\" command."
+              ]
           handleUpdates
             rest
             (HandlerData
@@ -61,6 +71,12 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
                updateId
                usersData)
         Just n -> do
+          logDebug $
+            BS8.concat
+              [ "Update id: "
+              , BS8.pack $ show updateId
+              , ". Answer on \"/repeat\"."
+              ]
           handleUpdates
             rest
             (HandlerData
@@ -75,6 +91,12 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
                updateId
                (M.insert chatId (False, n) d))
     (_, True) -> do
+      logDebug $
+        BS8.concat
+          [ "Update id: "
+          , BS8.pack $ show updateId
+          , ". Incorrect answer on \"/repeat\" command."
+          ]
       handleUpdates
         rest
         (HandlerData
@@ -87,6 +109,9 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
     (TextMsg textMsg entities, _) -> do
       if head textMsg == '/'
         then do
+          logDebug $
+            BS8.concat
+              ["Update id: ", BS8.pack $ show updateId, ". Text command."]
           let answerMsg =
                 case textMsg of
                   "/help" ->
@@ -127,6 +152,9 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
                    rest
                    (HandlerData ((answerMsg, 1) : botMsgs) updateId usersData)
         else do
+          logDebug $
+            BS8.concat
+              ["Update id: ", BS8.pack $ show updateId, ". Text message."]
           handleUpdates
             rest
             (HandlerData
@@ -135,6 +163,9 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
                updateId
                usersData)
     (StickerMsg fileId, _) -> do
+      logDebug $
+        BS8.concat
+          ["Update id: ", BS8.pack $ show updateId, ". Sticker message."]
       handleUpdates
         rest
         (HandlerData
@@ -142,6 +173,9 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
            updateId
            usersData)
     (UnknownMsg, _) -> do
+      logWarning $
+        BS8.concat
+          ["Update id: ", BS8.pack $ show updateId, ". Unknown message."]
       lift $ putStrLn "Unknown message."
       handleUpdates rest (HandlerData botMsgs updateId usersData)
   where

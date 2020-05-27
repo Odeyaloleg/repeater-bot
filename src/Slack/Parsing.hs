@@ -3,6 +3,7 @@
 module Slack.Parsing
   ( SlackMsg(..)
   , SlackPayload(..)
+  , AnswerStatus(..)
   ) where
 
 import Data.Aeson (FromJSON(parseJSON), Value(Object), (.:), (.:?))
@@ -49,3 +50,15 @@ instance FromJSON SlackPayload where
         userId <- response .: "user" >>= (\userObject -> userObject .: "id")
         actionId <- head actions .: "action_id"
         return $ SlackPayloadButton userId actionId
+
+data AnswerStatus
+  = AnswerSuccess
+  | AnswerFail
+  deriving (Eq)
+
+instance FromJSON AnswerStatus where
+  parseJSON (Object answerObject) = do
+    isOk <- answerObject .: "ok"
+    case isOk of
+      False -> return AnswerFail
+      True -> return AnswerSuccess
