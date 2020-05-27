@@ -1,11 +1,11 @@
 import qualified Tests.Config
-import qualified Tests.UrlEncodedFormParsing
-import qualified Tests.Telegram.Parsing
-import qualified Tests.Telegram.Settings
-import qualified Tests.Telegram.ToJSON
 import qualified Tests.Slack.Parsing
 import qualified Tests.Slack.Settings
 import qualified Tests.Slack.ToJSON
+import qualified Tests.Telegram.Parsing
+import qualified Tests.Telegram.Settings
+import qualified Tests.Telegram.ToJSON
+import qualified Tests.UrlEncodedFormParsing
 
 main :: IO ()
 main = do

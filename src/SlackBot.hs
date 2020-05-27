@@ -146,24 +146,29 @@ handleSlashCommand reqBody = do
       lift $ putStrLn "Slack: Unknown data."
       return dataRecieved
     Just command -> do
-      let responseURL = fromJust $ getVal "response_url" requestData
-      case command of
-        "/about" -> do
-          logDebug "Sending answer onto \"/about\" command."
-          msgText <- asks $ aboutText . textAnswers
-          sendAnswerToCommand responseURL (TextAnswerJSON $ msgText)
-        "/repeat" -> do
-          logDebug "Sending answer onto \"/repeat\" command."
-          msgText <- asks $ repeatText . textAnswers
-          sendAnswerToCommand responseURL (ButtonsAnswerJSON $ msgText)
-        unknownCommand -> do
-          logRelease $
-            "Recieved slash command without handler: " `BSL.append`
-            BSL8.pack command
-          sendAnswerToCommand
-            responseURL
-            (TextAnswerJSON "There is no handler for this command.")
-      return dataRecieved
+      case getVal "response_url" requestData of
+        Nothing -> do
+          logRelease $ "Couldn't parse response url. Body: " `BSL.append` reqBody
+          lift $ putStrLn "Slack: Unknown data."
+          return dataRecieved
+        Just responseURL -> do
+          case command of
+            "/about" -> do
+              logDebug "Sending answer onto \"/about\" command."
+              msgText <- asks $ aboutText . textAnswers
+              sendAnswerToCommand responseURL (TextAnswerJSON $ msgText)
+            "/repeat" -> do
+              logDebug "Sending answer onto \"/repeat\" command."
+              msgText <- asks $ repeatText . textAnswers
+              sendAnswerToCommand responseURL (ButtonsAnswerJSON $ msgText)
+            unknownCommand -> do
+              logRelease $
+                "Recieved slash command without handler: " `BSL.append`
+                BSL8.pack command
+              sendAnswerToCommand
+                responseURL
+                (TextAnswerJSON "There is no handler for this command.")
+          return dataRecieved
 
 handleInteractivity ::
      BSL.ByteString
