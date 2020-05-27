@@ -8,11 +8,11 @@ Available commands:
 * /help(Telegram) /about(Slack) - Information about the bot.
 * /repeat - Allows to choose how many times(1-5) bot will repeat messages.
 
-Configure bot in ~/bot.config.
+Rename config "bot.config.clear" in "bot.config" and configure bot.
 
 ### Structure:
 
-Module Main reads bot.config and runs bots of every messenger. If concrete messenger's bot has specified task or required own structure for this task, it has individual module in it's own directory. For example, Telegram has own structure for sending messages, so code for this is in module Telegram.SendingMessages.
+Module Main reads bot.config and runs bot for messenger according to config. If concrete messenger's bot has specified task or required own structure for this task, it has individual module in it's own directory. For example, Telegram has own structure for sending messages, so code for this is in module Telegram.SendingMessages.
 
 Loop of every bot:
 1. Getting message from messenger.
