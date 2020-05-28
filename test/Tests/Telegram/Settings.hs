@@ -4,13 +4,11 @@ module Tests.Telegram.Settings
   ( runTests
   ) where
 
-import qualified Data.Map.Strict as MS
 import qualified Data.ByteString.Char8 as BS8
-import Telegram.Settings
-  ( RequestSettings(..)
-  , TelegramSettings(..)
-  , setTelegramSettings
-  )
+import qualified Data.Map.Strict as MS
+import Logger (LogLevel(..))
+import Settings (setBotSettings)
+import Telegram.Settings (RequestSettings(..), TelegramSettings(..))
 import Test.QuickCheck (Property, quickCheckAll)
 import Test.QuickCheck.Monadic (assert, monadicIO, run)
 
@@ -18,16 +16,18 @@ prop_correctData :: Property
 prop_correctData =
   monadicIO $ do
     let result =
-          setTelegramSettings $
+          setBotSettings $
           (MS.fromList
-            [ ("TelegramToken", "BotToken")
-            , ("ProxyIP", "")
-            , ("ProxyPort", "")
-            , ("PollingTimeout", "60")
-            , ("RepetitionsNumber", "1")
-            , ("CommandHelp", "HelpMsg")
-            , ("CommandRepeat", "RepeatMsg")
-            ] :: MS.Map BS8.ByteString BS8.ByteString)
+             [ ("TelegramToken", "BotToken")
+             , ("ProxyIP", "")
+             , ("ProxyPort", "")
+             , ("PollingTimeout", "60")
+             , ("RepetitionsNumber", "1")
+             , ("CommandHelp", "HelpMsg")
+             , ("CommandRepeat", "RepeatMsg")
+             , ("IncorrectAnswer", "IncorrectMsg")
+             , ("TelegramLogLevel", "DEBUG")
+             ] :: MS.Map BS8.ByteString BS8.ByteString)
     assert $
       result ==
       Just
@@ -36,7 +36,9 @@ prop_correctData =
            60
            1
            "HelpMsg"
-           "RepeatMsg")
+           "RepeatMsg"
+           "IncorrectMsg"
+           LevelDEBUG)
 
 return []
 
