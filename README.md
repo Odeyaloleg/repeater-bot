@@ -8,7 +8,7 @@ Available commands:
 * /help(Telegram) /about(Slack) - Information about the bot.
 * /repeat - Allows to choose how many times(1-5) bot will repeat messages.
 
-Rename config "bot.config.clear" in "bot.config" and configure bot.
+Config template "bot.config" is located in "~/templates/". Make sure you copied it into your directory with executable and put your settings.
 
 ### Structure:
 
