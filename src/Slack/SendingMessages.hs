@@ -10,7 +10,6 @@ import Data.Aeson (ToJSON, encode)
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Lazy.Char8 as BSL8
-import Logger (logDebug, logRelease)
 import qualified Network.HTTP.Client.Internal as HTTP.Internal
 import Network.HTTP.Simple
   ( getResponseBody
@@ -20,6 +19,7 @@ import Network.HTTP.Simple
   , parseRequest
   )
 import Network.HTTP.Types (hContentType)
+import RepeaterBot.Logger (logDebug, logRelease)
 import Slack.Parsing (AnswerStatus(..))
 import Slack.Settings (SlackEnv(..))
 

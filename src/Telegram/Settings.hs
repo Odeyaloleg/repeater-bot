@@ -9,7 +9,8 @@ import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (asks)
 import qualified Data.ByteString.Char8 as BS8
-import Logger
+import Network.HTTP.Client (Proxy(Proxy))
+import RepeaterBot.Logger
   ( LogLevel(..)
   , Logger
   , logDebug
@@ -17,8 +18,7 @@ import Logger
   , logWarning
   , writeLogIn
   )
-import Network.HTTP.Client (Proxy(Proxy))
-import Settings
+import RepeaterBot.Settings
   ( HasSettings
   , getLogLevel
   , getRepetitions

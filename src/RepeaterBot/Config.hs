@@ -1,4 +1,4 @@
-module Config
+module RepeaterBot.Config
   ( HasConfig
   , readConfig
   , parseConfig
@@ -6,22 +6,22 @@ module Config
   ) where
 
 import qualified Data.ByteString.Char8 as BS8
-import qualified Data.Map.Strict as MS
+import qualified Data.Map.Strict as Map
 
 class HasConfig a where
-  readConfig :: a -> IO (Either String (MS.Map BS8.ByteString BS8.ByteString))
+  readConfig :: a -> IO (Either String (Map.Map BS8.ByteString BS8.ByteString))
 
-getVal :: Ord k => k -> MS.Map k a -> Maybe a
-getVal = MS.lookup
+getVal :: Ord k => k -> Map.Map k a -> Maybe a
+getVal = Map.lookup
 
 parseConfig ::
-     BS8.ByteString -> Either String (MS.Map BS8.ByteString BS8.ByteString)
+     BS8.ByteString -> Either String (Map.Map BS8.ByteString BS8.ByteString)
 parseConfig contents =
   let configLines = BS8.lines contents
       settingsList = parseConfigLines configLines
    in either
         (Left . ("parse error on line " ++) . show)
-        (Right . MS.fromList)
+        (Right . Map.fromList)
         settingsList
   where
     parseConfigLines configLines = parseLoop (1, []) configLines

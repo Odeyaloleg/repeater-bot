@@ -5,7 +5,6 @@ module Telegram.Polling where
 import Control.Monad.Reader (ReaderT, ask, lift)
 import Data.Aeson (decode)
 import qualified Data.ByteString.Lazy as BSL
-import Logger (logDebug, logWarning)
 import Network.HTTP.Client.Internal
   ( ResponseTimeout(ResponseTimeoutMicro)
   , parseRequest
@@ -13,6 +12,7 @@ import Network.HTTP.Client.Internal
   , responseTimeout
   )
 import Network.HTTP.Simple (getResponseBody, httpLBS)
+import RepeaterBot.Logger (logDebug, logWarning)
 import Telegram.BotModel (LastUpdateId, botUri)
 import Telegram.Parsing (TelegramUpdates(..))
 import Telegram.Settings (RequestSettings(..), TelegramSettings(..))

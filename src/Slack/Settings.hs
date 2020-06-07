@@ -12,7 +12,7 @@ module Slack.Settings
 import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (asks)
-import Logger
+import RepeaterBot.Logger
   ( LogLevel(..)
   , Logger
   , logDebug
@@ -20,7 +20,7 @@ import Logger
   , logWarning
   , writeLogIn
   )
-import Settings
+import RepeaterBot.Settings
   ( HasSettings
   , getLogLevel
   , getRepetitions

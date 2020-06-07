@@ -25,4 +25,3 @@ runTests =
     if passed
       then putStrLn "All Telegram encoding to JSON tests passed."
       else putStrLn "Some Telegram encoding to JSON tests failed."
-

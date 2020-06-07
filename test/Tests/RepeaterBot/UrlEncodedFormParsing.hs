@@ -1,12 +1,12 @@
 {-# LANGUAGE TemplateHaskell, OverloadedStrings #-}
 
-module Tests.UrlEncodedFormParsing
+module Tests.RepeaterBot.UrlEncodedFormParsing
   ( runTests
   ) where
 
+import RepeaterBot.UrlEncodedFormParsing (getVal, parseUrlEncoded)
 import Test.QuickCheck (Property, quickCheckAll)
 import Test.QuickCheck.Monadic (assert, monadicIO, run)
-import UrlEncodedFormParsing (getVal, parseUrlEncoded)
 
 prop_simpleTest :: Property
 prop_simpleTest =

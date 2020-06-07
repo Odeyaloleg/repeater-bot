@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Logger where
+module RepeaterBot.Logger where
 
+import Control.Exception (SomeException, try)
 import Control.Monad.Reader (ReaderT)
 import qualified Data.ByteString.Lazy as BSL
-import Control.Exception (SomeException, try)
 
 data LogLevel
   = LevelDEBUG

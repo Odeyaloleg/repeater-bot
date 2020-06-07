@@ -6,8 +6,8 @@ module Tests.Slack.Settings
 
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.Map.Strict as MS
-import Logger (LogLevel(..))
-import Settings (setBotSettings)
+import RepeaterBot.Logger (LogLevel(..))
+import RepeaterBot.Settings (setBotSettings)
 import Slack.Settings
   ( ServerSettings(..)
   , SlackSettings(..)

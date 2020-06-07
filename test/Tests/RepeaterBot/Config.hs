@@ -1,10 +1,10 @@
-module Tests.Config
+module Tests.RepeaterBot.Config
   ( runTests
   ) where
 
-import Config (parseConfig)
 import Data.ByteString.Char8 (pack)
 import qualified Data.Map.Strict as MS
+import RepeaterBot.Config (parseConfig)
 
 prop_emptyConfigSafety :: Bool
 prop_emptyConfigSafety =

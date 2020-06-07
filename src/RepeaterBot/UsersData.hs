@@ -1,4 +1,4 @@
-module UsersData
+module RepeaterBot.UsersData
   ( UsersData
   ) where
 

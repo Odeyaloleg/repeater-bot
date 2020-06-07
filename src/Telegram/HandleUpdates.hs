@@ -6,7 +6,8 @@ import Control.Monad.Reader (ReaderT, ask, lift)
 import qualified Data.ByteString.Lazy.Char8 as BS8
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
-import Logger (logDebug, logWarning)
+import RepeaterBot.Logger (logDebug, logWarning)
+import RepeaterBot.UsersData (UsersData)
 import Telegram.BotModel (ChatId, LastUpdateId)
 import Telegram.Parsing
   ( TelegramEntity(..)
@@ -23,7 +24,6 @@ import Telegram.ToJSON
   , TelegramReplyMarkup(..)
   )
 import Text.Read (readMaybe)
-import UsersData (UsersData)
 
 type RepetitionsNum = Int
 

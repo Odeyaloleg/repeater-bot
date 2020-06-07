@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module SlackBot
+module Slack.SlackBot
   ( execSlackBot
   ) where
 
@@ -10,13 +10,15 @@ import Data.Aeson (decode, encode)
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Lazy.Char8 as BSL8
-import qualified Data.Map as M
+import qualified Data.Map as Map
 import Data.Maybe (fromJust)
 import Data.Streaming.Network.Internal (HostPreference(Host))
-import Logger (logDebug, logRelease)
 import Network.HTTP.Types (hContentType, status200)
 import qualified Network.Wai as WAI
 import Network.Wai.Handler.Warp (defaultSettings, runSettings, setHost, setPort)
+import RepeaterBot.Logger (logDebug, logRelease)
+import RepeaterBot.UrlEncodedFormParsing (getVal, hexesToChars, parseUrlEncoded)
+import RepeaterBot.UsersData (UsersData)
 import Slack.Parsing (AnswerStatus(..), SlackMsg(..), SlackPayload(..))
 import Slack.SendingMessages (sendAnswerNTimes, sendAnswerToCommand)
 import Slack.Settings
@@ -30,8 +32,6 @@ import Slack.ToJSON
   , SlackCommandAnswerJSON(..)
   , SlackTextMessageJSON(..)
   )
-import UrlEncodedFormParsing (getVal, hexesToChars, parseUrlEncoded)
-import UsersData (UsersData)
 
 type RequestPath = BS8.ByteString
 
@@ -39,7 +39,7 @@ type RequestBody = BSL.ByteString
 
 execSlackBot :: SlackSettings -> IO ()
 execSlackBot (SlackSettings botToken (ServerSettings serverIP serverPort) repetitionsNum textAnswers logLevel) = do
-  usersDataMV <- newMVar M.empty
+  usersDataMV <- newMVar Map.empty
   runSettings
     (setPort serverPort $ setHost (Host serverIP) defaultSettings)
     (application
@@ -96,12 +96,13 @@ handleTextMsg reqBody usersDataMV = do
           token <- asks botToken
           usersData <- lift $ takeMVar usersDataMV
           let usersData' =
-                case M.member userId usersData of
+                case Map.member userId usersData of
                   True -> usersData
-                  False -> M.insert userId (False, defaultRepetitions) usersData
+                  False ->
+                    Map.insert userId (False, defaultRepetitions) usersData
           lift $ putMVar usersDataMV usersData'
           let (isAskedForRepetitions, repetitions) =
-                fromJust $ M.lookup userId usersData'
+                fromJust $ Map.lookup userId usersData'
           logDebug "Sending message back."
           answers <-
             sendAnswerNTimes
@@ -148,7 +149,8 @@ handleSlashCommand reqBody = do
     Just command -> do
       case getVal "response_url" requestData of
         Nothing -> do
-          logRelease $ "Couldn't parse response url. Body: " `BSL.append` reqBody
+          logRelease $
+            "Couldn't parse response url. Body: " `BSL.append` reqBody
           lift $ putStrLn "Slack: Unknown data."
           return dataRecieved
         Just responseURL -> do
@@ -193,7 +195,7 @@ handleInteractivity reqBody usersDataMV = do
           lift $
             putMVar
               usersDataMV
-              (M.insert userId (False, read actionId) usersData)
+              (Map.insert userId (False, read actionId) usersData)
         UnknownPayload -> do
           logRelease $
             "Unknown interactivity payload. Body: " `BSL.append` reqBody

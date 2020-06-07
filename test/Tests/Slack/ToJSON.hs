@@ -25,4 +25,3 @@ runTests =
     if passed
       then putStrLn "All Slack encoding to JSON tests passed."
       else putStrLn "Some Slack encoding to JSON tests failed."
-
