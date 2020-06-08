@@ -8,7 +8,7 @@ module Slack.ToJSON
 
 import Data.Aeson (ToJSON(toJSON), (.=), object)
 
-data SlackChallengeJSON =
+newtype SlackChallengeJSON =
   SlackChallengeJSON String
 
 instance ToJSON SlackChallengeJSON where

@@ -21,9 +21,9 @@ data TelegramUpdates
 instance FromJSON TelegramUpdates where
   parseJSON (Object updatesObject) = do
     isOk <- updatesObject .: "ok"
-    case isOk of
-      False -> BadRequest <$> updatesObject .: "description"
-      True -> TelegramUpdates <$> updatesObject .: "result"
+    if isOk
+      then TelegramUpdates <$> updatesObject .: "result"
+      else BadRequest <$> updatesObject .: "description"
 
 type UpdateId = Int
 
@@ -39,11 +39,11 @@ data TelegramMsgUpdate =
   TelegramMsgUpdate UpdateId ChatId TelegramMsg
 
 instance FromJSON TelegramMsgUpdate where
-  parseJSON (Object msgUpdateObject) = do
+  parseJSON (Object msgUpdateObject) =
     TelegramMsgUpdate <$> msgUpdateObject .: "update_id" <*>
-      (msgUpdateObject .: "message" >>= \messageObject ->
-         messageObject .: "chat" >>= \chatObject -> chatObject .: "id") <*>
-      msgUpdateObject .: "message"
+    (msgUpdateObject .: "message" >>= \messageObject ->
+       messageObject .: "chat" >>= \chatObject -> chatObject .: "id") <*>
+    msgUpdateObject .: "message"
 
 data TelegramMsg
   = TextMsg String (Maybe [TelegramEntity])
@@ -76,6 +76,6 @@ data AnswerStatus
 instance FromJSON AnswerStatus where
   parseJSON (Object answerObject) = do
     isOk <- answerObject .: "ok"
-    case isOk of
-      False -> return AnswerFail
-      True -> return AnswerSuccess
+    if isOk
+      then return AnswerSuccess
+      else return AnswerFail

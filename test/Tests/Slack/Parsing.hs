@@ -12,7 +12,9 @@ import Test.QuickCheck.Monadic (assert, monadicIO, run)
 prop_challenge :: Property
 prop_challenge =
   monadicIO $ do
-    let result = decode "{\"type\":\"url_verification\",\"challenge\":\"some_challenge\"}" :: Maybe SlackMsg
+    let result =
+          decode
+            "{\"type\":\"url_verification\",\"challenge\":\"some_challenge\"}" :: Maybe SlackMsg
     assert $ result == Just (SlackChallenge "some_challenge")
 
 return []

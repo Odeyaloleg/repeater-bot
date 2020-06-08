@@ -5,7 +5,6 @@ module Telegram.Polling where
 import Control.Monad.Reader (ReaderT, ask, lift)
 import Data.Aeson (decode)
 import qualified Data.ByteString.Lazy as BSL
-import Logger (logDebug, logWarning)
 import Network.HTTP.Client.Internal
   ( ResponseTimeout(ResponseTimeoutMicro)
   , parseRequest
@@ -13,6 +12,7 @@ import Network.HTTP.Client.Internal
   , responseTimeout
   )
 import Network.HTTP.Simple (getResponseBody, httpLBS)
+import RepeaterBot.Logger (logDebug, logWarning)
 import Telegram.BotModel (LastUpdateId, botUri)
 import Telegram.Parsing (TelegramUpdates(..))
 import Telegram.Settings (RequestSettings(..), TelegramSettings(..))
@@ -24,7 +24,7 @@ pollTelegram lastUpdId = do
   request <-
     parseRequest $
     botUri ++
-    (botToken (requestSettings settings)) ++
+    botToken (requestSettings settings) ++
     "/getUpdates?timeout=" ++
     show (pollingTimeout settings) ++ "&offset=" ++ show offset
   logDebug "Polling Telegram."
@@ -42,5 +42,4 @@ pollTelegram lastUpdId = do
       lift $ putStrLn "Couldn't parse updates."
       logWarning "Couldn't parse updates."
       return $ TelegramUpdates []
-    Just telegramUpdates -> do
-      return telegramUpdates
+    Just telegramUpdates -> return telegramUpdates

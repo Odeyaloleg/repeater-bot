@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module UrlEncodedFormParsing
+module RepeaterBot.UrlEncodedFormParsing
   ( parseUrlEncoded
   , getVal
   , hexesToChars
@@ -9,10 +9,9 @@ module UrlEncodedFormParsing
 import qualified Data.ByteString.Lazy.Char8 as BSL8
 import Data.Char (chr)
 import Data.Foldable (foldrM)
-import qualified Data.Map.Strict as MS (Map, fromList, lookup)
-import Data.Maybe (fromJust)
+import qualified Data.Map.Strict as Map (Map, fromList, lookup)
 
-parseUrlEncoded :: BSL8.ByteString -> MS.Map BSL8.ByteString String
+parseUrlEncoded :: BSL8.ByteString -> Map.Map BSL8.ByteString String
 parseUrlEncoded d =
   let dataLines =
         fst $
@@ -25,7 +24,7 @@ parseUrlEncoded d =
                else (acc, c `BSL8.cons` dataLine))
           ([], "")
           d
-   in MS.fromList $ map inTuple dataLines
+   in Map.fromList $ map inTuple dataLines
   where
     inTuple line = helper ("", line)
     helper (field, value) =
@@ -35,7 +34,7 @@ parseUrlEncoded d =
             else helper (field `BSL8.append` BSL8.singleton c, BSL8.tail value)
 
 hexesToChars :: BSL8.ByteString -> BSL8.ByteString
-hexesToChars v =
+hexesToChars =
   BSL8.foldr
     (\c acc ->
        if c == '%'
@@ -45,26 +44,20 @@ hexesToChars v =
                 (hexToChar $ BSL8.take 2 acc)
          else BSL8.singleton c `BSL8.append` acc)
     ""
-    v
 
-getVal :: BSL8.ByteString -> MS.Map BSL8.ByteString String -> Maybe String
-getVal field d = MS.lookup field d
+getVal :: BSL8.ByteString -> Map.Map BSL8.ByteString String -> Maybe String
+getVal = Map.lookup
 
 hexToChar :: BSL8.ByteString -> Maybe Char
-hexToChar hex = maybe Nothing (Just . chr) (toDecimal $ BSL8.unpack hex)
+hexToChar hex = toDecimal (BSL8.unpack hex) >>= (Just . chr)
   where
     toDecimal h =
-      maybe
-        Nothing
-        (Just . fst)
-        (foldrM
-           (\c (acc, n) ->
-              maybe
-                Nothing
-                (\x -> Just (acc + x * (16 ^ n), n + 1))
-                (hexCharToNum c))
-           (0, 0)
-           h)
+      (Just . fst) =<<
+      foldrM
+        (\c (acc, n) ->
+           hexCharToNum c >>= (\x -> Just (acc + x * (16 ^ n), n + 1)))
+        (0, 0)
+        h
     hexCharToNum x =
       case x of
         '0' -> Just 0

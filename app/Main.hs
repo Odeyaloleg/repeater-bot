@@ -2,16 +2,16 @@
 
 module Main where
 
-import Config (HasConfig, parseConfig, readConfig, getVal)
-import Settings (HasSettings, setBotSettings)
 import Control.Concurrent.Async (async)
-import Slack.Settings (SlackSettings)
-import SlackBot (execSlackBot)
-import Telegram.Settings (TelegramSettings)
-import TelegramBot (execTelegramBot)
 import Control.Exception (SomeException, try)
-import System.IO (FilePath)
 import qualified Data.ByteString.Char8 as BS8
+import RepeaterBot.Config (HasConfig, getVal, parseConfig, readConfig)
+import RepeaterBot.Settings (HasSettings, setBotSettings)
+import Slack.Settings (SlackSettings)
+import Slack.SlackBot (execSlackBot)
+import System.IO (FilePath)
+import Telegram.Settings (TelegramSettings)
+import Telegram.TelegramBot (execTelegramBot)
 
 main :: IO ()
 main = do
@@ -20,18 +20,21 @@ main = do
   config <- readConfig configName
   case config of
     Left e -> putStrLn $ "Config error: " ++ e
-    Right settings -> do
+    Right settings ->
       case getVal "Messenger" settings of
         Just "Telegram" -> do
           putStrLn "Starting Telegram Bot."
-          let telegramSettings = setBotSettings settings :: Maybe TelegramSettings
+          let telegramSettings =
+                setBotSettings settings :: Maybe TelegramSettings
           runBot execTelegramBot telegramSettings
         Just "Slack" -> do
           putStrLn "Starting Slack Bot."
           let slackSettings = setBotSettings settings :: Maybe SlackSettings
           runBot execSlackBot slackSettings
         Just _ -> putStrLn "Unknown messenger in config. Bot wasn't executed."
-        Nothing -> putStrLn "Couldn't find field \"Messenger\" in config. Bot wasn't executed."
+        Nothing ->
+          putStrLn
+            "Couldn't find field \"Messenger\" in config. Bot wasn't executed."
 
 instance HasConfig FilePath where
   readConfig configName = do

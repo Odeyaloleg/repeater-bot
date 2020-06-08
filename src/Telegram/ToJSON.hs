@@ -37,7 +37,7 @@ instance ToJSON BotStickerMsgJSON where
   toJSON (BotStickerMsgJSON chatId stickerUniqueId) =
     object ["chat_id" .= chatId, "sticker" .= stickerUniqueId]
 
-data TelegramKBButton =
+newtype TelegramKBButton =
   TelegramKBButton
     { buttonText :: String
     }
