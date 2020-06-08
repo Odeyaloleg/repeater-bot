@@ -11,7 +11,6 @@ import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Lazy.Char8 as BSL8
 import qualified Data.Map as Map
-import Data.Maybe (fromJust)
 import Data.Streaming.Network.Internal (HostPreference(Host))
 import Network.HTTP.Types (hContentType, status200)
 import qualified Network.Wai as WAI
@@ -95,18 +94,17 @@ handleTextMsg reqBody usersDataMV = do
         SlackTextMessage channelId userId textMessage -> do
           token <- asks botToken
           usersData <- lift $ takeMVar usersDataMV
+          let (isAskedForRepetitions, userRepetitions) =
+                Map.findWithDefault (False, defaultRepetitions) userId usersData
           let usersData' =
-                case Map.member userId usersData of
-                  True -> usersData
-                  False ->
-                    Map.insert userId (False, defaultRepetitions) usersData
+                if Map.member userId usersData
+                  then usersData
+                  else Map.insert userId (False, defaultRepetitions) usersData
           lift $ putMVar usersDataMV usersData'
-          let (isAskedForRepetitions, repetitions) =
-                fromJust $ Map.lookup userId usersData'
           logDebug "Sending message back."
           answers <-
             sendAnswerNTimes
-              repetitions
+              userRepetitions
               "chat.postMessage"
               (SlackTextMessageJSON channelId textMessage)
           let failedSize = length $ filter (== AnswerFail) answers
@@ -115,15 +113,15 @@ handleTextMsg reqBody usersDataMV = do
             then logRelease $
                  BSL8.concat
                    [ "Failed to send "
-                   , (BSL8.pack $ show failedSize)
+                   , BSL8.pack $ show failedSize
                    , "/"
-                   , (BSL8.pack $ show succeedSize)
+                   , BSL8.pack $ show succeedSize
                    , " messages."
                    ]
             else logDebug $
                  BSL8.concat
                    [ "Successfully sent all "
-                   , (BSL8.pack $ show succeedSize)
+                   , BSL8.pack $ show succeedSize
                    , " messages."
                    ]
           return dataRecieved
@@ -146,7 +144,7 @@ handleSlashCommand reqBody = do
       logRelease $ "Couldn't parse slack command. Body: " `BSL.append` reqBody
       lift $ putStrLn "Slack: Unknown data."
       return dataRecieved
-    Just command -> do
+    Just command ->
       case getVal "response_url" requestData of
         Nothing -> do
           logRelease $
@@ -158,11 +156,11 @@ handleSlashCommand reqBody = do
             "/about" -> do
               logDebug "Sending answer onto \"/about\" command."
               msgText <- asks $ aboutText . textAnswers
-              sendAnswerToCommand responseURL (TextAnswerJSON $ msgText)
+              sendAnswerToCommand responseURL (TextAnswerJSON msgText)
             "/repeat" -> do
               logDebug "Sending answer onto \"/repeat\" command."
               msgText <- asks $ repeatText . textAnswers
-              sendAnswerToCommand responseURL (ButtonsAnswerJSON $ msgText)
+              sendAnswerToCommand responseURL (ButtonsAnswerJSON msgText)
             unknownCommand -> do
               logRelease $
                 "Recieved slash command without handler: " `BSL.append`
@@ -186,7 +184,7 @@ handleInteractivity reqBody usersDataMV = do
       logRelease $
         "Couldn't parse interactivity data. Body: " `BSL.append` reqBody
       lift $ putStrLn "Slack: Unknown data."
-    Just payload -> do
+    Just payload ->
       case payload of
         SlackPayloadButton userId actionId -> do
           logDebug $

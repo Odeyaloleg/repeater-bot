@@ -20,7 +20,7 @@ main = do
   config <- readConfig configName
   case config of
     Left e -> putStrLn $ "Config error: " ++ e
-    Right settings -> do
+    Right settings ->
       case getVal "Messenger" settings of
         Just "Telegram" -> do
           putStrLn "Starting Telegram Bot."

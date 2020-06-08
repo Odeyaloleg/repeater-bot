@@ -53,7 +53,7 @@ instance HasSettings TelegramSettings where
       getSettingString "ProxyIP" settingsMap >>=
       (\ip ->
          getSettingInt "ProxyPort" settingsMap >>=
-         (\port -> Just $ Just $ Proxy (BS8.pack ip) port))
+         (Just . Just . Proxy (BS8.pack ip)))
     parsedPollingTimeout <- getSettingInt "PollingTimeout" settingsMap
     parsedRepititions <- getRepetitions settingsMap
     parsedHelpMsg <- getSettingString "CommandHelp" settingsMap

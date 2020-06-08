@@ -65,15 +65,15 @@ sendAnswerNTimes n telegramMethod botMessage = do
       { method = "POST"
       , proxy = proxyServer settings
       , requestHeaders = [(HTTP.hContentType, "application/json")]
-      , requestBody = RequestBodyLBS $ encode $ botMessage
+      , requestBody = RequestBodyLBS $ encode botMessage
       }
     []
   where
     repeatAnswer 1 answer answersStatus = do
       response <- httpJSON answer
-      let answerStatus = (getResponseBody response :: AnswerStatus)
+      let answerStatus = getResponseBody response :: AnswerStatus
       return $ answerStatus : answersStatus
     repeatAnswer n answer answersStatus = do
       response <- httpJSON answer
-      let answerStatus = (getResponseBody response :: AnswerStatus)
+      let answerStatus = getResponseBody response :: AnswerStatus
       repeatAnswer (n - 1) answer (answerStatus : answersStatus)

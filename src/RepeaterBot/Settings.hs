@@ -41,13 +41,12 @@ getRepetitions settingsMap =
   (\n ->
      if BS8.null n
        then Nothing
-       else do
-         case BS8.readInt n of
-           Just (n', _) ->
-             if n' > 0 && n' < 6
-               then Just n'
-               else Nothing
-           _ -> Nothing)
+       else case BS8.readInt n of
+              Just (n', _) ->
+                if n' > 0 && n' < 6
+                  then Just n'
+                  else Nothing
+              _ -> Nothing)
 
 getLogLevel ::
      BS8.ByteString -> Map.Map BS8.ByteString BS8.ByteString -> Maybe LogLevel

@@ -13,9 +13,9 @@ data LogLevel
   deriving (Eq, Ord)
 
 class Logger a where
-  logDebug :: BSL.ByteString -> (ReaderT a IO ())
-  logWarning :: BSL.ByteString -> (ReaderT a IO ())
-  logRelease :: BSL.ByteString -> (ReaderT a IO ())
+  logDebug :: BSL.ByteString -> ReaderT a IO ()
+  logWarning :: BSL.ByteString -> ReaderT a IO ()
+  logRelease :: BSL.ByteString -> ReaderT a IO ()
 
 writeLogIn :: FilePath -> BSL.ByteString -> IO ()
 writeLogIn fileName log = do

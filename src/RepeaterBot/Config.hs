@@ -24,7 +24,7 @@ parseConfig contents =
         (Right . Map.fromList)
         settingsList
   where
-    parseConfigLines configLines = parseLoop (1, []) configLines
+    parseConfigLines = parseLoop (1, [])
     parseLoop (_, passedLines) [] = Right passedLines
     parseLoop (lineNum, passedLines) (line:rest) =
       if BS8.null line || BS8.head line == '#'
@@ -46,5 +46,5 @@ tupleOn c settingData = helper c (BS8.pack "", settingData)
           then Nothing
           else helper
                  c
-                 ( fieldName `BS8.append` BS8.pack ((BS8.head rest) : [])
+                 ( fieldName `BS8.append` BS8.pack [BS8.head rest]
                  , BS8.tail rest)

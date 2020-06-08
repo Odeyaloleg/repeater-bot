@@ -35,7 +35,7 @@ instance FromJSON SlackMsg where
             user <- eventObj .: "user"
             textMessage <- eventObj .: "text"
             return $ SlackTextMessage channel user textMessage
-          _ -> return $ SlackOwnMessage
+          _ -> return SlackOwnMessage
 
 data SlackPayload
   = SlackPayloadButton UserId String
@@ -47,7 +47,7 @@ instance FromJSON SlackPayload where
     if null actions
       then return UnknownPayload
       else do
-        userId <- response .: "user" >>= (\userObject -> userObject .: "id")
+        userId <- response .: "user" >>= (.: "id")
         actionId <- head actions .: "action_id"
         return $ SlackPayloadButton userId actionId
 
@@ -59,6 +59,6 @@ data AnswerStatus
 instance FromJSON AnswerStatus where
   parseJSON (Object answerObject) = do
     isOk <- answerObject .: "ok"
-    case isOk of
-      False -> return AnswerFail
-      True -> return AnswerSuccess
+    if isOk
+      then return AnswerSuccess
+      else return AnswerFail

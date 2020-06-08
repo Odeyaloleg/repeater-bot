@@ -24,7 +24,7 @@ pollTelegram lastUpdId = do
   request <-
     parseRequest $
     botUri ++
-    (botToken (requestSettings settings)) ++
+    botToken (requestSettings settings) ++
     "/getUpdates?timeout=" ++
     show (pollingTimeout settings) ++ "&offset=" ++ show offset
   logDebug "Polling Telegram."
@@ -42,5 +42,4 @@ pollTelegram lastUpdId = do
       lift $ putStrLn "Couldn't parse updates."
       logWarning "Couldn't parse updates."
       return $ TelegramUpdates []
-    Just telegramUpdates -> do
-      return telegramUpdates
+    Just telegramUpdates -> return telegramUpdates

@@ -48,11 +48,11 @@ sendAnswerNTimes n slackMethod slackMsg = do
   where
     repeatAnswer 1 answer answersStatus = do
       response <- httpJSON answer
-      let answerStatus = (getResponseBody response :: AnswerStatus)
+      let answerStatus = getResponseBody response :: AnswerStatus
       return $ answerStatus : answersStatus
     repeatAnswer n answer answersStatus = do
       response <- httpJSON answer
-      let answerStatus = (getResponseBody response :: AnswerStatus)
+      let answerStatus = getResponseBody response :: AnswerStatus
       repeatAnswer (n - 1) answer (answerStatus : answersStatus)
 
 sendAnswerToCommand ::

@@ -26,7 +26,7 @@ import Telegram.SendingMessages (sendMessagesNTimes)
 import Telegram.Settings (TelegramSettings(..))
 
 execTelegramBot :: TelegramSettings -> IO ()
-execTelegramBot s = runReaderT (runTelegramBot M.empty 0) s
+execTelegramBot = runReaderT (runTelegramBot M.empty 0)
 
 runTelegramBot ::
      UsersData Int -> LastUpdateId -> ReaderT TelegramSettings IO ()
@@ -40,7 +40,7 @@ runTelegramBot usersData lastUpdId = do
     TelegramUpdates updates -> do
       (HandlerData botMsgs lastUpdateId newUsersData) <-
         handleUpdates updates (HandlerData [] 0 usersData)
-      if length botMsgs == 0
+      if null botMsgs
         then logDebug "There is no handled updates."
         else do
           answers <- sendMessagesNTimes botMsgs
@@ -50,15 +50,15 @@ runTelegramBot usersData lastUpdId = do
             then logRelease $
                  BSL8.concat
                    [ "Failed to send "
-                   , (BSL8.pack $ show failedSize)
+                   , BSL8.pack $ show failedSize
                    , "/"
-                   , (BSL8.pack $ show succeedSize)
+                   , BSL8.pack $ show succeedSize
                    , " messages."
                    ]
             else logDebug $
                  BSL8.concat
                    [ "Successfully sent all "
-                   , (BSL8.pack $ show succeedSize)
+                   , BSL8.pack $ show succeedSize
                    , " messages."
                    ]
       runTelegramBot newUsersData lastUpdateId

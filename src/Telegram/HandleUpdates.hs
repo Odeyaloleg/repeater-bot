@@ -4,8 +4,7 @@ module Telegram.HandleUpdates where
 
 import Control.Monad.Reader (ReaderT, ask, lift)
 import qualified Data.ByteString.Lazy.Char8 as BS8
-import qualified Data.Map as M
-import Data.Maybe (fromJust)
+import qualified Data.Map as Map
 import RepeaterBot.Logger (logDebug, logWarning)
 import RepeaterBot.UsersData (UsersData)
 import Telegram.BotModel (ChatId, LastUpdateId)
@@ -40,12 +39,12 @@ handleUpdates ::
 handleUpdates [] handlerData = return handlerData
 handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData botMsgs lastUpdateId d) = do
   settings <- ask
+  let (isAskedForRepetitions, userRepetitions) =
+        Map.findWithDefault (False, repetitionsNum settings) chatId d
   let usersData =
-        case M.member chatId d of
-          True -> d
-          False -> M.insert chatId (False, (repetitionsNum settings)) d
-  let (isAskedForRepetitions, repetitionsNum) =
-        fromJust $ M.lookup chatId usersData
+        if Map.member chatId d
+          then d
+          else Map.insert chatId (False, repetitionsNum settings) d
   case (update, isAskedForRepetitions) of
     (TextMsg textMsg _, True) -> do
       let maybeRepetitions = readRepetitions textMsg
@@ -89,7 +88,7 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
                 , 1) :
                 botMsgs)
                updateId
-               (M.insert chatId (False, n) d))
+               (Map.insert chatId (False, n) d))
     (_, True) -> do
       logDebug $
         BS8.concat
@@ -106,7 +105,7 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
             botMsgs)
            updateId
            usersData)
-    (TextMsg textMsg entities, _) -> do
+    (TextMsg textMsg entities, _) ->
       if head textMsg == '/'
         then do
           logDebug $
@@ -124,7 +123,7 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
                       Nothing
                       (repeatMessage settings ++
                        " Now I am repeating your messages " ++
-                       show repetitionsNum ++ " times.")
+                       show userRepetitions ++ " times.")
                       (Just
                          (TelegramKBMarkup
                             [ [ TelegramKBButton "1"
@@ -147,7 +146,7 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
                    (HandlerData
                       ((answerMsg, 1) : botMsgs)
                       updateId
-                      (M.insert chatId (True, repetitionsNum) usersData))
+                      (Map.insert chatId (True, userRepetitions) usersData))
             else handleUpdates
                    rest
                    (HandlerData ((answerMsg, 1) : botMsgs) updateId usersData)
@@ -158,7 +157,7 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
           handleUpdates
             rest
             (HandlerData
-               ((composeTextMsg chatId textMsg entities, repetitionsNum) :
+               ((composeTextMsg chatId textMsg entities, userRepetitions) :
                 botMsgs)
                updateId
                usersData)
@@ -183,7 +182,7 @@ handleUpdates ((TelegramMsgUpdate updateId chatId update):rest) (HandlerData bot
       case readMaybe t of
         Just n ->
           if n > 0 && n < 6
-            then (Just n)
+            then Just n
             else Nothing
         _ -> Nothing
 
