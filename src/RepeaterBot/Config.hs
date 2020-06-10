@@ -25,26 +25,25 @@ parseConfig contents =
         settingsList
   where
     parseConfigLines = parseLoop (1, [])
-    parseLoop (_, passedLines) [] = Right passedLines
-    parseLoop (lineNum, passedLines) (line:rest) =
+    parseLoop (_, parsedSettings) [] = Right parsedSettings
+    parseLoop (lineNum, parsedSettings) (line:rest) =
       if BS8.null line || BS8.head line == '#'
-        then parseLoop (lineNum + 1, passedLines) rest
+        then parseLoop (lineNum + 1, parsedSettings) rest
         else maybe
                (Left lineNum)
-               (\setting -> parseLoop (lineNum + 1, setting : passedLines) rest)
+               (\setting -> parseLoop (lineNum + 1, setting : parsedSettings) rest)
                (tupleOn '=' line)
 
 -- Nothing if first parameter didn't occur in the second parameter
 tupleOn :: Char -> BS8.ByteString -> Maybe (BS8.ByteString, BS8.ByteString)
-tupleOn c settingData = helper c (BS8.pack "", settingData)
+tupleOn c settingData = helper (BS8.pack "", settingData)
   where
-    helper c (fieldName, rest)
+    helper (fieldName, rest)
       | not (BS8.null rest) && BS8.head rest == c =
         Just (fieldName, BS8.tail rest)
       | otherwise =
         if BS8.null rest
           then Nothing
           else helper
-                 c
                  ( fieldName `BS8.append` BS8.pack [BS8.head rest]
                  , BS8.tail rest)

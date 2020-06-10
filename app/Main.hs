@@ -5,6 +5,7 @@ module Main where
 import Control.Concurrent.Async (async)
 import Control.Exception (SomeException, try)
 import qualified Data.ByteString.Char8 as BS8
+import qualified Data.Map.Strict as Map
 import RepeaterBot.Config (HasConfig, getVal, parseConfig, readConfig)
 import RepeaterBot.Settings (HasSettings, setBotSettings)
 import Slack.Settings (SlackSettings)
@@ -18,23 +19,23 @@ main = do
   let configName = "bot.config" :: FilePath
   putStrLn $ "Reading config \"" ++ configName ++ "\"."
   config <- readConfig configName
-  case config of
-    Left e -> putStrLn $ "Config error: " ++ e
-    Right settings ->
-      case getVal "Messenger" settings of
-        Just "Telegram" -> do
-          putStrLn "Starting Telegram Bot."
-          let telegramSettings =
-                setBotSettings settings :: Maybe TelegramSettings
-          runBot execTelegramBot telegramSettings
-        Just "Slack" -> do
-          putStrLn "Starting Slack Bot."
-          let slackSettings = setBotSettings settings :: Maybe SlackSettings
-          runBot execSlackBot slackSettings
-        Just _ -> putStrLn "Unknown messenger in config. Bot wasn't executed."
-        Nothing ->
-          putStrLn
-            "Couldn't find field \"Messenger\" in config. Bot wasn't executed."
+  either (putStrLn . ("Config error: " ++)) runWithConfig config
+
+runWithConfig :: Map.Map BS8.ByteString BS8.ByteString -> IO ()
+runWithConfig settings =
+  case getVal "Messenger" settings of
+    Just "Telegram" -> do
+      putStrLn "Starting Telegram Bot."
+      let telegramSettings = setBotSettings settings :: Maybe TelegramSettings
+      runBot execTelegramBot telegramSettings
+    Just "Slack" -> do
+      putStrLn "Starting Slack Bot."
+      let slackSettings = setBotSettings settings :: Maybe SlackSettings
+      runBot execSlackBot slackSettings
+    Just _ -> putStrLn "Unknown messenger in config. Bot wasn't executed."
+    Nothing ->
+      putStrLn
+        "Couldn't find field \"Messenger\" in config. Bot wasn't executed."
 
 instance HasConfig FilePath where
   readConfig configName = do
