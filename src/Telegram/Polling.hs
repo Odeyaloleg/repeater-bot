@@ -37,6 +37,10 @@ pollTelegram lastUpdId = do
       }
   let responseBody = getResponseBody response :: BSL.ByteString
   logDebug $ "Telegram response: " `BSL.append` responseBody
+  parseResponse responseBody
+
+parseResponse :: BSL.ByteString -> ReaderT TelegramSettings IO TelegramUpdates
+parseResponse responseBody =
   case (decode responseBody :: Maybe TelegramUpdates) of
     Nothing -> do
       lift $ putStrLn "Couldn't parse updates."

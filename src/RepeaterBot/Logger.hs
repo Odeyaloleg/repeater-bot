@@ -5,6 +5,7 @@ module RepeaterBot.Logger where
 import Control.Exception (SomeException, try)
 import Control.Monad.Reader (ReaderT)
 import qualified Data.ByteString.Lazy as BSL
+import qualified Data.ByteString.Lazy.Char8 as BSL8
 
 data LogLevel
   = LevelDEBUG
@@ -24,3 +25,26 @@ writeLogIn fileName log = do
   case result of
     Left e -> putStrLn $ "Logger error: " ++ show e
     Right _ -> return ()
+
+type SucceedAnswersSize = Int
+
+type FailedAnswersSize = Int
+
+logSendingResult ::
+     (Logger a) => SucceedAnswersSize -> FailedAnswersSize -> ReaderT a IO ()
+logSendingResult succeedSize failedSize =
+  if failedSize > 0
+    then logRelease $
+         BSL8.concat
+           [ "Failed to send "
+           , BSL8.pack $ show failedSize
+           , "/"
+           , BSL8.pack $ show (succeedSize + failedSize)
+           , " messages."
+           ]
+    else logDebug $
+         BSL8.concat
+           [ "Successfully sent all "
+           , BSL8.pack $ show succeedSize
+           , " messages."
+           ]

@@ -15,7 +15,7 @@ import Data.Streaming.Network.Internal (HostPreference(Host))
 import Network.HTTP.Types (hContentType, status200)
 import qualified Network.Wai as WAI
 import Network.Wai.Handler.Warp (defaultSettings, runSettings, setHost, setPort)
-import RepeaterBot.Logger (logDebug, logRelease)
+import RepeaterBot.Logger (logDebug, logRelease, logSendingResult)
 import RepeaterBot.UrlEncodedFormParsing (getVal, hexesToChars, parseUrlEncoded)
 import RepeaterBot.UsersData (UsersData)
 import Slack.Parsing (AnswerStatus(..), SlackMsg(..), SlackPayload(..))
@@ -109,21 +109,7 @@ handleTextMsg reqBody usersDataMV = do
               (SlackTextMessageJSON channelId textMessage)
           let failedSize = length $ filter (== AnswerFail) answers
           let succeedSize = length $ filter (== AnswerSuccess) answers
-          if failedSize > 0
-            then logRelease $
-                 BSL8.concat
-                   [ "Failed to send "
-                   , BSL8.pack $ show failedSize
-                   , "/"
-                   , BSL8.pack $ show succeedSize
-                   , " messages."
-                   ]
-            else logDebug $
-                 BSL8.concat
-                   [ "Successfully sent all "
-                   , BSL8.pack $ show succeedSize
-                   , " messages."
-                   ]
+          logSendingResult failedSize succeedSize
           return dataRecieved
         SlackOwnMessage -> do
           logDebug "Recieved message is own. Actions are not required."
@@ -176,7 +162,7 @@ handleInteractivity ::
   -> ReaderT SlackEnv IO WAI.Response
 handleInteractivity reqBody usersDataMV = do
   let requestData = parseUrlEncoded reqBody
-  -- Drop first 8 letters, because of format "Payload-<data>"
+  -- Drop first 8 characters, because of format "Payload-<data>"
   let parsedRequest =
         decode $ hexesToChars $ BSL8.drop 8 reqBody :: Maybe SlackPayload
   case parsedRequest of

@@ -14,6 +14,7 @@ import RepeaterBot.Logger
   , Logger
   , logDebug
   , logRelease
+  , logSendingResult
   , logWarning
   , writeLogIn
   )
@@ -32,33 +33,20 @@ runTelegramBot ::
      UsersData Int -> LastUpdateId -> ReaderT TelegramSettings IO ()
 runTelegramBot usersData lastUpdId = do
   pollingResult <- pollTelegram lastUpdId
-  case pollingResult of
-    BadRequest description -> do
-      lift $ putStrLn $ "Telegram polling error: " ++ description
-      logRelease $
-        "Telegram polling error: " `BSL8.append` BSL8.pack description
-    TelegramUpdates updates -> do
-      (HandlerData botMsgs lastUpdateId newUsersData) <-
-        handleUpdates updates (HandlerData [] 0 usersData)
-      if null botMsgs
-        then logDebug "There is no handled updates."
-        else do
-          answers <- sendMessagesNTimes botMsgs
-          let failedSize = length $ filter (== AnswerFail) answers
-          let succeedSize = length $ filter (== AnswerSuccess) answers
-          if failedSize > 0
-            then logRelease $
-                 BSL8.concat
-                   [ "Failed to send "
-                   , BSL8.pack $ show failedSize
-                   , "/"
-                   , BSL8.pack $ show succeedSize
-                   , " messages."
-                   ]
-            else logDebug $
-                 BSL8.concat
-                   [ "Successfully sent all "
-                   , BSL8.pack $ show succeedSize
-                   , " messages."
-                   ]
-      runTelegramBot newUsersData lastUpdateId
+  handlePollingResult pollingResult usersData
+
+handlePollingResult :: TelegramUpdates -> UsersData Int -> ReaderT TelegramSettings IO ()
+handlePollingResult (BadRequest description) _ = do
+  lift $ putStrLn $ "Telegram polling error: " ++ description
+  logRelease $ "Telegram polling error: " `BSL8.append` BSL8.pack description
+handlePollingResult (TelegramUpdates updates) usersData = do
+  (HandlerData botMsgs lastUpdateId newUsersData) <-
+    handleUpdates updates (HandlerData [] 0 usersData)
+  if null botMsgs
+    then logDebug "There is no handled updates."
+    else do
+      answers <- sendMessagesNTimes botMsgs
+      let failedSize = length $ filter (== AnswerFail) answers
+      let succeedSize = length $ filter (== AnswerSuccess) answers
+      logSendingResult failedSize succeedSize
+  runTelegramBot newUsersData lastUpdateId
